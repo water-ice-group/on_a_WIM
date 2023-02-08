@@ -18,7 +18,7 @@ u.add_TopologyAttr('charges')
 # calculate 
 # -------------------------------------------------
 
-WC_inter = WillardChandler(u,endstep=500)
+WC_inter = WillardChandler(u)
 result = WC_inter.generate(grid=400)
 
 # -------------------------------------------------
@@ -59,7 +59,7 @@ ax.set_xlabel('Distance / $\mathrm{\AA}$')
 ax.set_ylabel('HBond count')
 ax.set_xlim(-15,0)
 ax.set_ylim(0,4)
-plt.savefig('hbond_profile.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
+plt.savefig('./outputs/hbond_profile.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
 plt.show()
 
 #%%

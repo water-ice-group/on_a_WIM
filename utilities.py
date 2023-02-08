@@ -11,13 +11,29 @@ class AtomPos:
         self._end = end_step if end_step is not None else (len(self._u.trajectory)-1)
         
         
+        
     def prepare(self):
+        
+        unopos = self.water()[0]
+        unh1pos = self.water()[1]
+        unh2pos = self.water()[2]
+        self.wrap()
+        opos = self.water()[0]
+        h1pos = self.water()[1]
+        h2pos = self.water()[2]
+        cpos = self.carbon()[0]
+    
+        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,cpos)
+        
+    def wrap(self):
         
         ag = self._u.atoms
         transform = wrap(ag)
         self._u.trajectory.add_transformations(transform)
         
+    
         
+    
 
     def water(self):
         '''Load trajectory for water.'''

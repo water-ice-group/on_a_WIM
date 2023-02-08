@@ -100,6 +100,6 @@ def dens_plot(data_Oxygen,data_Carbon=None):
 
 
     ax.legend(loc='upper right')
-    plt.savefig('dens_plot.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.savefig('./outputs/dens_plot.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
         

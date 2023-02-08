@@ -60,11 +60,12 @@ class WC_Interface:
         return density_field
                 
     
-    def criteria(self,manifold,O_atoms,crit=0.016):
+    def criteria(self,O_atoms,crit=0.016):
         '''Identify the quasi-2D surface by equating the points in the density
         field to a particular critical value, chosen here to be half the 
         density of water.'''
         
+        manifold = self.grid_spacing()
         field = self.CG_field(manifold,O_atoms)
         inter_lower = [] # need to account for both surfaces.
         inter_upper = []
@@ -188,7 +189,7 @@ class WC_Interface:
             iter_count += 1
 
             
-            with open('surface.xyz', 'a') as f:
+            with open('./outputs/surface.xyz', 'a') as f:
                 writer  = csv.writer(f,delimiter=' ',quoting=csv.QUOTE_NONNUMERIC,
                                      quotechar=' ')
                 line12 = [[str(len(i))],[f'Timeframe {iter_count}/{tot_frames}.']]

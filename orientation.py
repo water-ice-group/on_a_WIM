@@ -61,7 +61,7 @@ def oriPlot(hist,smooth=2):
                     alpha=0.2)
     ax.set_xlabel('Distance / $\mathrm{\AA}$')
     ax.set_ylabel(r'P<cos($\theta$)>')
-    plt.savefig('orientation.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.savefig('./outputs/orientation.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
 
 

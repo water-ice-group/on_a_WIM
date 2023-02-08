@@ -9,8 +9,10 @@ from density import Density
 from density import dens_plot
 from orientation import Orientation
 from orientation import oriPlot
-from MDAnalysis.transformations.wrap import wrap,unwrap
 from hbondz import Hbondz
+
+
+
 
 class WillardChandler:
     
@@ -28,30 +30,19 @@ class WillardChandler:
         '''Generate the WC interface.'''
         
         pos = AtomPos(self._u,self._end)
-        self._unopos = pos.water()[0]
-        self._unh1pos = pos.water()[1]
-        self._unh2pos = pos.water()[2]
-        pos.prepare()
-        self._opos = pos.water()[0]
-        self._h1pos = pos.water()[1]
-        self._h2pos = pos.water()[2]
-        self._cpos = pos.carbon()[0]
+        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._cpos = pos.prepare()
         
         inter = WC_Interface(self._u,grid)
-        
-        grid = inter.grid_spacing()
         opos_traj = self._opos
         
         WC_inter = []
         iter_run = 0 
         for i in opos_traj:
-            result = inter.criteria(grid,i)
+            result = inter.criteria(i)
             WC_inter.append(result)
             iter_run += 1
-            
             if (iter_run) in range(0,len(self._u.trajectory),50):
                 print(f'Completed {iter_run}/{len(opos_traj)} frames')
-            
         self._WC = WC_inter
         self.inter = inter
         
@@ -103,7 +94,7 @@ class WillardChandler:
         
         save_dat = np.array([x_range[:-1],result])
         save_dat = save_dat.transpose()
-        np.savetxt(atom_type + '_dens.dat',save_dat)
+        np.savetxt('./outputs/' + atom_type + '_dens.dat',save_dat)
         return (result,x_range)
     
     def Density_plot(self,data_Oxygen,data_Carbon=None):
@@ -135,7 +126,7 @@ class WillardChandler:
                                    Theta_array,
                                    bins=bins,hist_range=[lower,upper])
 
-        np.savetxt('orientation.dat',result)
+        np.savetxt('./outputs/orientation.dat',result)
         self._ori = result
         return result
     
