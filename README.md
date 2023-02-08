@@ -1,5 +1,5 @@
 # on_a_WIM
-super cool python module
+Willard-Chandler Interfacial Module - a super cool python module.
 
 Use module to generate instantaneous interfaces and measure properties relative to this interface. 
 
