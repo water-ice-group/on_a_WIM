@@ -4,7 +4,7 @@ from WillardChandler import WillardChandler
 import matplotlib.pyplot as plt
 
 pdb = 'ref_coords.pdb'
-trj = 'centered.dcd'
+trj = 'test.dcd'
 
 u = mda.Universe(pdb)
 dimensions = u.dimensions
