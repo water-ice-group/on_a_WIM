@@ -4,6 +4,7 @@
 import numpy as np
 from density import Density
 import math as m
+import matplotlib.pyplot as plt
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.lib.distances import calc_angles
 
@@ -49,7 +50,15 @@ class Hbondz:
         return dist
     
 
-                        
+def hbondPlot(hist):
+    fig, ax = plt.subplots()
+    ax.plot(hist[1][:-1],hist[0],'.-')
+    ax.set_xlabel('Distance / $\mathrm{\AA}$')
+    ax.set_ylabel('HBond count')
+    ax.set_xlim(-15,0)
+    #ax.set_ylim(0,4)
+    plt.savefig('./outputs/hbond_profile.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.show()
 
             
         

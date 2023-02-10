@@ -10,8 +10,11 @@ from density import dens_plot
 from orientation import Orientation
 from orientation import oriPlot
 from hbondz import Hbondz
+from hbondz import hbondPlot
 
-
+import multiprocessing
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 
 class WillardChandler:
@@ -24,29 +27,35 @@ class WillardChandler:
         self._end = endstep
         
 
-
-    # generate the initial WC interface
     def generate(self,grid=400):
         '''Generate the WC interface.'''
         
+        print()
+        print('---------------------')
+        print(' Loading trajectory  ')
+        print('---------------------')
+        print()
+
         pos = AtomPos(self._u,self._end)
         self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._cpos = pos.prepare()
         
         inter = WC_Interface(self._u,grid)
         opos_traj = self._opos
+        num_cores = multiprocessing.cpu_count()
         
-        WC_inter = []
-        iter_run = 0 
-        for i in opos_traj:
-            result = inter.criteria(i)
-            WC_inter.append(result)
-            iter_run += 1
-            if (iter_run) in range(0,len(self._u.trajectory),50):
-                print(f'Completed {iter_run}/{len(opos_traj)} frames')
-        self._WC = WC_inter
+        print()
+        print(f'Number of cores: {num_cores}')
+        print()
+
+        print('Generating frames ...')
+        result = Parallel(n_jobs=num_cores)(delayed(inter.criteria)(i) for i in tqdm(opos_traj))
+        self._WC = result
         self.inter = inter
-        
-        return WC_inter
+
+        print('Done')
+        print()
+
+        return self._WC
 
     
     # save coordinates for visualisation
@@ -62,40 +71,43 @@ class WillardChandler:
     # Density
     def Density_run(self,atom_type,bins=200,lower=-20,upper=10):
         '''Obtain the density of species relative to the WC interface.'''
-        
+
         dens = Density(self._u)
     
         if atom_type == 'OW':
             traj = self._opos
         elif atom_type == 'C':
             traj = self._cpos
- 
-        print(atom_type)
-        
-        density = []
-        for i in range(len(traj)):
-            proxim = dens.proximity(self._WC[i],traj[i])
-            density += proxim
-            if i in range(0,len(traj),50):
-                print(f'Completed {i}/{len(traj)} frames.')
-        
+
+        print()
+        print(f'Obtaining {atom_type} density.')
+
+        num_cores = multiprocessing.cpu_count()
+        print('Calculating density profile ...')
+        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i]) for i in tqdm(range(len(traj))))
+        print('Generating histogram(s)')
+
+        hist_input = np.concatenate(result).ravel()
         if atom_type == 'OW':
-            density,x_range = np.histogram(density,bins=bins,range=[lower,upper])
+            density,x_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
             self._waterno = density
             water_dens = 18.01528
             N_A = 6.022*10**23
             xy = self._u.dimensions[0]
             hist_range = upper - lower
-            result = [(i*water_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density]
+            result_hist = [(i*water_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density]
             
         elif atom_type == 'C':
-            density,x_range = np.histogram(density,bins=bins,range=[lower,upper],density=True)
-            result = density
+            density,x_range = np.histogram(hist_input,bins=bins,range=[lower,upper],density=True)
+            result_hist = density
         
-        save_dat = np.array([x_range[:-1],result])
+        save_dat = np.array([x_range[:-1],result_hist])
         save_dat = save_dat.transpose()
         np.savetxt('./outputs/' + atom_type + '_dens.dat',save_dat)
-        return (result,x_range)
+        print('Done')
+        print()
+        return (result_hist,x_range)
+
     
     def Density_plot(self,data_Oxygen,data_Carbon=None):
         dens_plot(data_Oxygen,data_Carbon)
@@ -110,17 +122,20 @@ class WillardChandler:
         dist_list = []
         ori = Orientation(self._u)        
         
-        counter = 0 
-        for i in range(len(self._unopos)):
-            cosTheta = ori._getCosTheta(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i])
-            dist_list.append(cosTheta[0])
-            cosTheta_list.append(cosTheta[1])
-            counter += 1
-            if counter in range(0,len(self._unopos)+1,50):
-                print(f'Frame {counter} / {len(self._opos)}.')
+        print()
+        print(f'Obtaining orientations.')
 
-        dist_array = np.concatenate(dist_list).ravel()
-        Theta_array = np.concatenate(cosTheta_list).ravel()
+        num_cores = multiprocessing.cpu_count()
+        print('Calculating orientation profile ...')
+        result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._unopos))))
+        
+        dist = [i[0] for i in result]
+        theta = [i[1] for i in result]
+        
+        print('Generating histogram(s)')
+
+        dist_array = np.concatenate(dist).ravel()
+        Theta_array = np.concatenate(theta).ravel()
         
         result = ori._getHistogram(dist_array,
                                    Theta_array,
@@ -128,6 +143,8 @@ class WillardChandler:
 
         np.savetxt('./outputs/orientation.dat',result)
         self._ori = result
+        print('Done.')
+        print()
         return result
     
     def Orientation_plot(self):
@@ -143,25 +160,33 @@ class WillardChandler:
         hbonds = []
         counter = Hbondz(self._u)
         
-        for i in range(len(self._opos)):
-            result = counter.count(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i])
-            hbonds += result
-            print(i)
+
+        print()
+        print(f'Obtaining Hbonds.')
+
+        num_cores = multiprocessing.cpu_count()
+        print('Calculating H-Bond profile ...')
+        result = Parallel(n_jobs=num_cores)(delayed(counter.count)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._opos))))
+        print('Generating histogram(s)')
             
-        hbonds = np.array(hbonds).ravel()
+        hbonds = np.concatenate(result).ravel()
         
         hist,xrange = np.histogram(hbonds,bins=bins,range=[lower,upper])
+
+        # N_A = 6.022*10**23
+        # xy = self._u.dimensions[0]
+        # hist_range = upper - lower
         
-        N_A = 6.022*10**23
-        xy = self._u.dimensions[0]
-        hist_range = upper - lower
-        #result = [i/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in hbond_count]
-        
-        
-        result = [hist[i]/self._waterno[i] for i in range(len(hist)) if (self._waterno[i] != 0)]
-        xrange = [xrange[i] for i in range(len(hist)) if (self._waterno[i] != 0)]
-        
-        return (result,xrange)
+        # result = [hist[i]/self._waterno[i] for i in range(len(hist)) if (self._waterno[i] != 0)]
+        # xrange = [xrange[i] for i in range(len(hist)) if (self._waterno[i] != 0)]
+
+        print('Done.')
+        print()
+        self._hbonds = (hist,xrange)
+        return (hist,xrange)
+    
+    def HBondz_plot(self):
+        hbondPlot(self._hbonds)
         
 
 
