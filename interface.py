@@ -39,8 +39,8 @@ class WC_Interface:
         '''Create the spatial positions extending the entirety of the box.'''
         
         grid = []
-        for i in np.linspace(0,self._u.dimensions[0],12):
-            for j in np.linspace(0,self._u.dimensions[1],12):
+        for i in np.linspace(0,self._u.dimensions[0],int(self._u.dimensions[0])):
+            for j in np.linspace(0,self._u.dimensions[1],int(self._u.dimensions[1])):
                 for k in np.linspace(0,self._u.dimensions[2],self._gs):
                     grid.append([i,j,k])
         
@@ -113,14 +113,15 @@ class WC_Interface:
         y_upper = [i[1] for i in WC_upper]
         z_upper = [i[2] for i in WC_upper]
         
-        ti = np.linspace(0,12.42,100)
-                    
+
         # interpolate
         tck_upper = interpolate.bisplrep(x_upper, y_upper, z_upper)
         
+        xy = self._u.dimensions[0]
+        mesh = complex(0,100)
         
         # interpolate over new 100x100 grid
-        xnew_edges, ynew_edges = np.mgrid[0:12.42:100j, 0:12.42:100j]
+        xnew_edges, ynew_edges = np.mgrid[0:xy:mesh, 0:xy:mesh]
         xnew = xnew_edges[:-1, :-1] + np.diff(xnew_edges[:2, 0])[0] / 2.
         ynew = ynew_edges[:-1, :-1] + np.diff(ynew_edges[0, :2])[0] / 2.
         
@@ -139,17 +140,12 @@ class WC_Interface:
         y_lower = [i[1] for i in WC_lower]
         z_lower = [i[2] for i in WC_lower]
         
-        ti = np.linspace(0,12.42,100)
+
                     
         # interpolate
         tck_lower = interpolate.bisplrep(x_lower, y_lower, z_lower)
         
-        
-        
-        # interpolate over new 100x100 grid
-        xnew_edges, ynew_edges = np.mgrid[0:12.42:100j, 0:12.42:100j]
-        xnew = xnew_edges[:-1, :-1] + np.diff(xnew_edges[:2, 0])[0] / 2.
-        ynew = ynew_edges[:-1, :-1] + np.diff(ynew_edges[0, :2])[0] / 2.
+
         
         znew = interpolate.bisplev(xnew[:,0], ynew[0,:], tck_lower)
         

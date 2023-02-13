@@ -27,7 +27,7 @@ data_Oxygen = WC_inter.Density_run('OW',500,-15,10)
 data_Carbon = WC_inter.Density_run('C',500,-15,10)
 
 # density plot
-#WC_inter.Density_plot(data_Oxygen,data_Carbon)
+WC_inter.Density_plot(data_Oxygen,data_Carbon)
 
 
 # orientational analysis
@@ -41,7 +41,7 @@ result = WC_inter.Orientation_run(200,-15,-1)
 result = WC_inter.Hbonds_run()
 
 # plot of the hbond analysis
-#WC_inter.HBondz_plot()
+WC_inter.HBondz_plot()
 
 
 # save coordinates of WC for visualisation
