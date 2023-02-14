@@ -2,6 +2,7 @@
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.transformations.wrap import wrap,unwrap
 import numpy as np
+import tqdm as tqdm
 
 class AtomPos: 
     
@@ -14,14 +15,13 @@ class AtomPos:
         
     def prepare(self):
         
-        unopos = self.water()[0]
-        unh1pos = self.water()[1]
-        unh2pos = self.water()[2]
+        print('Unwrapped coordinates')
+        unopos,unh1pos,unh2pos,blank1,blank2 = self.positions()
+        print()
+
+        print('Wrapped coordinates')
         self.wrap()
-        opos = self.water()[0]
-        h1pos = self.water()[1]
-        h2pos = self.water()[2]
-        cpos = self.carbon()[0]
+        opos,h1pos,h2pos,cpos,blank3 = self.positions()
     
         return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,cpos)
         
@@ -31,15 +31,19 @@ class AtomPos:
         transform = wrap(ag)
         self._u.trajectory.add_transformations(transform)
         
-    
-        
-    
 
-    def water(self):
+    def positions(self):
         '''Load trajectory for water.'''
         opos_traj = []
         h1_traj = []
         h2_traj = []
+        cpos_traj = []
+        ocpos_traj = []
+
+        length = len(self._u.trajectory[:self._end])
+        print('Parsing through frames.')
+        print(f'Total: {length}.')
+
         for ts in self._u.trajectory[:self._end]:
             oh_dist = distance_array(self._u.select_atoms('name' + ' OW').positions, # distance array loaded from module
                                     self._u.select_atoms('name' + ' H').positions, 
@@ -51,8 +55,13 @@ class AtomPos:
             opos_traj.append(opos)
             h1_traj.append(h1pos)
             h2_traj.append(h2pos)
+
+            cpos = self._u.select_atoms('name C').positions
+            ocpos = self._u.select_atoms('name OC').positions
+            cpos_traj.append(cpos)  
+            ocpos_traj.append(ocpos)
     
-        return (opos_traj,h1_traj,h2_traj)
+        return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos_traj)
     
     
     def carbon(self):
