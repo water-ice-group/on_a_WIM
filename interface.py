@@ -39,8 +39,8 @@ class WC_Interface:
         '''Create the spatial positions extending the entirety of the box.'''
         
         grid = []
-        for i in np.linspace(0,self._u.dimensions[0],int(self._u.dimensions[0])):
-            for j in np.linspace(0,self._u.dimensions[1],int(self._u.dimensions[1])):
+        for i in np.linspace(0,self._u.dimensions[0],15):
+            for j in np.linspace(0,self._u.dimensions[1],15):
                 for k in np.linspace(0,self._u.dimensions[2],self._gs):
                     grid.append([i,j,k])
         
