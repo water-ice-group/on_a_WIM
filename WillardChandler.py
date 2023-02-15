@@ -47,8 +47,10 @@ class WillardChandler:
         print(f'Number of cores: {num_cores}')
         print()
 
+        grid = inter.grid_spacing()
+
         print('Generating frames ...')
-        result = Parallel(n_jobs=num_cores)(delayed(inter.criteria)(i) for i in tqdm(opos_traj))
+        result = Parallel(n_jobs=num_cores)(delayed(inter.criteria)(i,grid) for i in tqdm(opos_traj))
         self._WC = result
         self.inter = inter
 

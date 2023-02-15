@@ -37,10 +37,18 @@ class WC_Interface:
         
     def grid_spacing(self):
         '''Create the spatial positions extending the entirety of the box.'''
+
+        # obtain rough boundaries to the slab
+        # frame = np.array(self._u.trajectory[0])
+        # dist_array = distance_array(frame,frame,box=self._u.dimensions)
+        # dim = np.max(dist_array)/2
+
+        # z_coords = np.linspace(0,dim,self._gs/2) + np.linspace(self._u.dimensions[2],self._u.dimensions[2]-dim,self._gs/2)
+
         
         grid = []
-        for i in np.linspace(0,self._u.dimensions[0],15):
-            for j in np.linspace(0,self._u.dimensions[1],15):
+        for i in np.linspace(0,self._u.dimensions[0],int(self._u.dimensions[0])):
+            for j in np.linspace(0,self._u.dimensions[1],int(self._u.dimensions[1])):
                 for k in np.linspace(0,self._u.dimensions[2],self._gs):
                     grid.append([i,j,k])
         
@@ -60,12 +68,12 @@ class WC_Interface:
         return density_field
                 
     
-    def criteria(self,O_atoms,crit=0.016):
+    def criteria(self,O_atoms,grid,crit=0.016):
         '''Identify the quasi-2D surface by equating the points in the density
         field to a particular critical value, chosen here to be half the 
         density of water.'''
         
-        manifold = self.grid_spacing()
+        manifold = grid
         field = self.CG_field(manifold,O_atoms)
         inter_lower = [] # need to account for both surfaces.
         inter_upper = []
