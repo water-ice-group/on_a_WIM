@@ -62,7 +62,10 @@ class Density:
         elif result == 'both':
             return (mag_prox,np.array(vect_list))
         
-        
+
+
+
+
 
 def dens_plot(data_Oxygen,data_Carbon=None):
     
@@ -103,3 +106,14 @@ def dens_plot(data_Oxygen,data_Carbon=None):
     plt.savefig('./outputs/dens_plot.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
         
+
+
+
+
+
+
+
+
+
+
+

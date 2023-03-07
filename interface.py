@@ -166,7 +166,9 @@ class WC_Interface:
         WC_surf = coordinates_upper + coordinates_lower
         return WC_surf
     
-    
+
+
+
 
     ##########################################################################
     ############################ Visualisation ###############################
@@ -180,8 +182,8 @@ class WC_Interface:
         iter_count = 0
         tot_frames = len(WC)
         
-        if os.path.isfile('./surface.xyz'):
-            os.remove('./surface.xyz')
+        if os.path.isfile('./outputs/surface.xyz'):
+            os.remove('./outputs/surface.xyz')
         
         for i in WC: # parse through the frames
             iden = 'S'

@@ -155,7 +155,7 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Hydrogen bond counting
-    def Hbonds_run(self,bins=200,lower=-15,upper=0):
+    def Hbonds_run(self,bins=100,lower=-15,upper=0):
         '''Obtain the HBond profile mapping the average count with distance 
         from the interface.'''
         
@@ -174,17 +174,13 @@ class WillardChandler:
         hbonds = np.concatenate(result).ravel()
         
         hist,xrange = np.histogram(hbonds,bins=bins,range=[lower,upper])
-
-        # N_A = 6.022*10**23
-        # xy = self._u.dimensions[0]
-        # hist_range = upper - lower
-        
-        # result = [hist[i]/self._waterno[i] for i in range(len(hist)) if (self._waterno[i] != 0)]
-        # xrange = [xrange[i] for i in range(len(hist)) if (self._waterno[i] != 0)]
-
+        hist_adj = hist/len(self._WC)
         print('Done.')
         print()
-        self._hbonds = (hist,xrange)
+
+        output = np.array([ [xrange[i],hist_adj[i]] for i in range(len(xrange)-1)])
+        np.savetxt('./outputs/hbonds.dat',output)
+        self._hbonds = (hist_adj,xrange)
         return (hist,xrange)
     
     def HBondz_plot(self):

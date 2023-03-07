@@ -24,7 +24,7 @@ class Hbondz:
     def count(self, opos, h1pos, h2pos, wc, wrap_opos):
         '''For each timeframe, determine the HBond count.'''
         
-        opos_dist = distance_array(opos,opos,box=self._u.dimensions)
+        opos_dist = distance_array(opos,opos,box=self._u.dimensions) # technically double counts - mitigated by two interfaces.
         crit_1a,crit_1b = np.where( (opos_dist>0) & (opos_dist <= 3.0) )
         
         angle_array = calc_angles(opos[crit_1a],h1pos[crit_1a],opos[crit_1b],box=self._u.dimensions)
@@ -32,7 +32,9 @@ class Hbondz:
         
         crit2 = np.where(angle_array > 150.0)
         ox_idx = crit_1a[crit2]
+        acc_idx = crit_1b[crit2]
         list_1 = [wrap_opos[i] for i in ox_idx]
+        list_2 = [wrap_opos[i] for i in acc_idx]
 
         
         angle_array = calc_angles(opos[crit_1a],h2pos[crit_1a],opos[crit_1b],box=self._u.dimensions)
@@ -40,9 +42,11 @@ class Hbondz:
 
         crit2 = np.where(angle_array > 150.0)
         ox_idx = crit_1a[crit2]
-        list_2 = [wrap_opos[i] for i in ox_idx]
-        
-        O_hbond_list = list_1 + list_2
+        acc_idx = crit_1b[crit2]
+        list_3 = [wrap_opos[i] for i in ox_idx]
+        list_4 = [wrap_opos[i] for i in acc_idx]
+
+        O_hbond_list = list_1 + list_2 + list_3 + list_4
 
         dens = Density(self._u)
         dist = dens.proximity(wc,O_hbond_list,'mag')
