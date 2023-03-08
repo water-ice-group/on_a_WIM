@@ -7,7 +7,7 @@ import math as m
 import matplotlib.pyplot as plt
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.lib.distances import calc_angles
-
+from scipy import stats
 
 
 class Hbondz:
@@ -21,7 +21,7 @@ class Hbondz:
 
         
         
-    def count(self, opos, h1pos, h2pos, wc, wrap_opos):
+    def count(self, opos, h1pos, h2pos, wc, wrap_opos,lower,upper,bins):
         '''For each timeframe, determine the HBond count.'''
         
         opos_dist = distance_array(opos,opos,box=self._u.dimensions) # technically double counts - mitigated by two interfaces.
@@ -50,13 +50,28 @@ class Hbondz:
 
         dens = Density(self._u)
         dist = dens.proximity(wc,O_hbond_list,'mag')
-        
-        return dist
+        dist_norm = dens.proximity(wc,wrap_opos,'mag')
+        hist,xrange = np.histogram(dist,bins=bins,range=[lower,upper])
+        hist_norm,xrange = np.histogram(dist_norm,bins=bins,range=[lower,upper])
+
+        hist_final = []
+        for i in range(len(hist)):
+            if (hist_norm[i] != 0):
+                result = hist[i]/hist_norm[i]
+                hist_final.append(result)
+            else:
+                result = hist[i]
+                hist_final.append(result)
+
+        return hist_final
+
+    
+
     
 
 def hbondPlot(hist):
     fig, ax = plt.subplots()
-    ax.plot(hist[1][:-1],hist[0],'.-')
+    ax.plot(hist[1],hist[0],'.-')
     ax.set_xlabel('Distance / $\mathrm{\AA}$')
     ax.set_ylabel('HBond count')
     ax.set_xlim(-15,0)

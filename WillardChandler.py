@@ -87,6 +87,7 @@ class WillardChandler:
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
         result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i]) for i in tqdm(range(len(traj))))
+        self._dens_result = result
         print('Generating histogram(s)')
 
         hist_input = np.concatenate(result).ravel()
@@ -168,20 +169,26 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating H-Bond profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(counter.count)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._opos))))
+        result = Parallel(n_jobs=num_cores)(delayed(counter.count)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i],lower,upper,bins) for i in tqdm(range(len(self._opos))))
         print('Generating histogram(s)')
-            
-        hbonds = np.concatenate(result).ravel()
+
+        hist_list = [0] * len(result[0])
+        for i in range(len(result[0])):
+            for j in range(len(result)):
+                hist_list[i] += result[j][i]
+
+        hist_list = np.array(hist_list)
         
-        hist,xrange = np.histogram(hbonds,bins=bins,range=[lower,upper])
-        hist_adj = hist/len(self._WC)
+        hist_adj = hist_list/len(self._WC)
         print('Done.')
         print()
+
+        xrange = np.linspace(lower,upper,bins)
 
         output = np.array([ [xrange[i],hist_adj[i]] for i in range(len(xrange)-1)])
         np.savetxt('./outputs/hbonds.dat',output)
         self._hbonds = (hist_adj,xrange)
-        return (hist,xrange)
+        return (hist_adj,xrange)
     
     def HBondz_plot(self):
         hbondPlot(self._hbonds)
