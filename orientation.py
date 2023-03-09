@@ -34,9 +34,23 @@ class Orientation:
                                                          cosThetra[:].flatten(),
                                                          statistic='mean', bins=bins,
                                                          range=hist_range)
+        
+        counts, edges, binnumber = stats.binned_statistic(dist[:].flatten(),
+                                                         cosThetra[:].flatten(),
+                                                         statistic='count', bins=bins,
+                                                         range=hist_range)
+        
+        print(counts)
+
+        final = []
+        for i in range(len(counts)):
+            if counts[i] > max(counts)*0.1:
+                final.append(means[i])
+            else:
+                final.append(0)
 
         edges = 0.5 * (edges[1:] + edges[:-1])
-        hist = np.array([edges, means])
+        hist = np.array([edges, final])
         hist = hist.transpose()
         return (hist)
     

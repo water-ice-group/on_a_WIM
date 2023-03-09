@@ -24,7 +24,8 @@ class Hbondz:
     def count(self, opos, h1pos, h2pos, wc, wrap_opos,lower,upper,bins):
         '''For each timeframe, determine the HBond count.'''
         
-        opos_dist = distance_array(opos,opos,box=self._u.dimensions) # technically double counts - mitigated by two interfaces.
+        # need to determine whether this is an instance of double counting or not. 
+        opos_dist = distance_array(opos,opos,box=self._u.dimensions) 
         crit_1a,crit_1b = np.where( (opos_dist>0) & (opos_dist <= 3.0) )
         
         angle_array = calc_angles(opos[crit_1a],h1pos[crit_1a],opos[crit_1b],box=self._u.dimensions)

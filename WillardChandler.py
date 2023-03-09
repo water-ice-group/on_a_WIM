@@ -143,6 +143,7 @@ class WillardChandler:
         result = ori._getHistogram(dist_array,
                                    Theta_array,
                                    bins=bins,hist_range=[lower,upper])
+        
 
         np.savetxt('./outputs/orientation.dat',result)
         self._ori = result
@@ -179,7 +180,7 @@ class WillardChandler:
 
         hist_list = np.array(hist_list)
         
-        hist_adj = hist_list/len(self._WC)
+        hist_adj = 2*hist_list/len(self._WC)
         print('Done.')
         print()
 

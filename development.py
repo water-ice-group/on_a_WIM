@@ -1,11 +1,10 @@
 
 import MDAnalysis as mda
 from WillardChandler import WillardChandler
-import matplotlib.pyplot as plt
-import joblib
+
 
 pdb = 'ref_coords.pdb'
-trj = '../centered.dcd'
+trj = 'test.dcd'
 
 u = mda.Universe(pdb)
 dimensions = u.dimensions
@@ -33,17 +32,17 @@ result = WC_inter.generate(grid=400)
 
 
 # # orientational analysis
-# result = WC_inter.Orientation_run(200,-15,-1)
+result = WC_inter.Orientation_run(200,-10,1)
 
 # # orientational plot
-# WC_inter.Orientation_plot()
+WC_inter.Orientation_plot()
 
 
 # hbond analysis
-result = WC_inter.Hbonds_run()
+# result = WC_inter.Hbonds_run()
 
 # plot of the hbond analysis
-WC_inter.HBondz_plot()
+# WC_inter.HBondz_plot()
 
 
 # save coordinates of WC for visualisation
