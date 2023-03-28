@@ -39,8 +39,8 @@ class Density:
                 scal_proj = np.dot(vect,z_unit)
                 mag.append(scal_proj)
                 vect_list.append(vect)
-            elif loc[i] > surf_div: # then the lower surface
-            #else:
+            #elif loc[i] > surf_div: # then the lower surface
+            else:
                 z_unit  = [0,0,1]
                 vect = pos[i] - WC_spline[loc[i]]
                 scal_proj = np.dot(vect,z_unit)
