@@ -74,6 +74,9 @@ class WillardChandler:
     def Density_run(self,atom_type,bins=200,lower=-20,upper=10):
         '''Obtain the density of species relative to the WC interface.'''
 
+        self._dens_lower = lower
+        self._dens_upper = upper
+
         dens = Density(self._u)
     
         if atom_type == 'OW':
@@ -113,7 +116,7 @@ class WillardChandler:
 
     
     def Density_plot(self,data_Oxygen,data_Carbon=None):
-        dens_plot(data_Oxygen,data_Carbon)
+        dens_plot(data_Oxygen,data_Carbon,self._dens_lower,self._dens_upper)
 
     # ------------------------------------------------------------------------
 
@@ -157,10 +160,13 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Hydrogen bond counting
-    def Hbonds_run(self,bins=100,lower=-15,upper=0):
+    def Hbonds_run(self,bins=75,lower=-15,upper=0):
         '''Obtain the HBond profile mapping the average count with distance 
         from the interface.'''
         
+        self._hbond_lower = lower
+        self._hbond_upper = upper
+
         hbonds = []
         counter = Hbondz(self._u)
         
@@ -180,7 +186,7 @@ class WillardChandler:
 
         hist_list = np.array(hist_list)
         
-        hist_adj = 2*hist_list/len(self._WC)
+        hist_adj = hist_list/len(self._WC)
         print('Done.')
         print()
 
@@ -192,7 +198,7 @@ class WillardChandler:
         return (hist_adj,xrange)
     
     def HBondz_plot(self):
-        hbondPlot(self._hbonds)
+        hbondPlot(self._hbonds,self._hbond_lower,self._hbond_upper)
         
 
 

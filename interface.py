@@ -80,8 +80,12 @@ class WC_Interface:
 
         
         for i in range(int(len(field)/self._gs)):
+
+            # extract field values at different z along point in the x/y.
             z_field = field[i*self._gs:(i+1)*self._gs]
-            z_pos = manifold[i*self._gs:(i+1)*self._gs]
+
+            # extract corresponding z coordinates along point in x/y frame. 
+            z_pos = manifold[i*self._gs:(i+1)*self._gs] 
             
             div = int(len(z_field)/2)
             

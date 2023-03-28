@@ -32,21 +32,21 @@ class Density:
         mag = []
         vect_list = []
         surf_div = int(len(WC_spline)/2)
-        for i in range(len(loc)):
-            if loc[i] < surf_div:
+        for i in range(len(pos)):
+            if loc[i] < surf_div: # upper surface first
                 z_unit  = [0,0,-1]
                 vect = pos[i] - WC_spline[loc[i]]
-                rev_vect = WC_spline[loc[i]] - pos[i]
                 scal_proj = np.dot(vect,z_unit)
                 mag.append(scal_proj)
-                vect_list.append(rev_vect)
-            elif loc[i] > surf_div:
+                vect_list.append(vect)
+            elif loc[i] > surf_div: # then the lower surface
+            #else:
                 z_unit  = [0,0,1]
                 vect = pos[i] - WC_spline[loc[i]]
-                rev_vect = WC_spline[loc[i]] - pos[i]
                 scal_proj = np.dot(vect,z_unit)
                 mag.append(scal_proj)
-                vect_list.append(rev_vect)
+                vect_list.append(vect)
+
                 
         mag_prox = [0]*len(mag)
         for i in range(len(mag)):
@@ -66,8 +66,7 @@ class Density:
 
 
 
-
-def dens_plot(data_Oxygen,data_Carbon=None):
+def dens_plot(data_Oxygen,data_Carbon=None,lower=-15,upper=15):
     
     # FONT -----------------------------------------------------------------------
     plt.rcParams["font.family"] = "Arial"
@@ -93,7 +92,7 @@ def dens_plot(data_Oxygen,data_Carbon=None):
                         color='black',
                         alpha=0.2)
         
-    ax.set_xlim(-15,10)
+    ax.set_xlim(lower,upper)
     ax.set_xlabel('Distance ($\mathrm{\AA}$)',size=12)
     ax.set_ylabel('Density (g/ml)',size=12)
     ax.tick_params(axis="x",which='both',direction="in",labelsize=12)

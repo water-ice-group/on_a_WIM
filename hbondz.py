@@ -26,7 +26,7 @@ class Hbondz:
         
         # need to determine whether this is an instance of double counting or not. 
         opos_dist = distance_array(opos,opos,box=self._u.dimensions) 
-        crit_1a,crit_1b = np.where( (opos_dist>0) & (opos_dist <= 3.0) )
+        crit_1a,crit_1b = np.where( (opos_dist>0) & (opos_dist <= 3.3) )
         
         angle_array = calc_angles(opos[crit_1a],h1pos[crit_1a],opos[crit_1b],box=self._u.dimensions)
         angle_array = np.rad2deg(angle_array)
@@ -66,17 +66,16 @@ class Hbondz:
 
         return hist_final
 
-    
 
     
 
-def hbondPlot(hist):
+def hbondPlot(hist,lower,upper):
     fig, ax = plt.subplots()
     ax.plot(hist[1],hist[0],'.-')
     ax.set_xlabel('Distance / $\mathrm{\AA}$')
     ax.set_ylabel('HBond count')
-    ax.set_xlim(-15,0)
-    #ax.set_ylim(0,4)
+    ax.set_xlim(lower,upper)
+    ax.set_ylim(0,4)
     plt.savefig('./outputs/hbond_profile.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
 
