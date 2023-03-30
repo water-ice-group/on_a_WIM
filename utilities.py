@@ -54,15 +54,26 @@ class AtomPos:
             h1_traj.append(h1pos)
             h2_traj.append(h2pos)
 
-            # c_oc_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
-            #                         self._u.select_atoms('name' + ' OC').positions, 
-            #                         box=self._u.dimensions)
+            c_oc_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
+                                    self._u.select_atoms('name' + ' OC').positions, 
+                                    box=self._u.dimensions)
+            
 
-            cpos = self._u.select_atoms('name' + ' C').positions
-            ocpos = self._u.select_atoms('name' + ' OC').positions
+            try:
+                idx = np.argpartition(c_oc_dist, 3, axis=-1)
+                cpos = self._u.select_atoms('name' + ' C').positions
+                oc1pos = self._u.select_atoms('name' + ' OC')[idx[:, 0]].positions
+                oc2pos = self._u.select_atoms('name' + ' OC')[idx[:, 1]].positions
 
-            cpos_traj.append(cpos)
-            ocpos_traj.append(ocpos)
+                cpos_traj.append(cpos)
+                ocpos_traj.append(oc1pos)
+
+            except:
+                cpos = self._u.select_atoms('name' + ' C').positions
+                ocpos = self._u.select_atoms('name' + ' OC').positions
+
+                cpos_traj.append(cpos)
+                ocpos_traj.append(ocpos)
 
 
         return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos_traj)
