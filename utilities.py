@@ -12,20 +12,24 @@ class AtomPos:
         self._end = end_step if end_step is not None else (len(self._u.trajectory)-1)
         
         
+        
+    def prepare(self):
+        
+        print('Unwrapped coordinates')
+        unopos,unh1pos,unh2pos,blank1,blank2 = self.positions()
+        print()
 
-    # def prepare(self):
-        
-    #     print('Unwrapped coordinates')
-    #     opos,h1pos,h2pos,cpos,ocpos1,ocpos2 = self.positions()
-    #     print()
+        print('Wrapped coordinates')
+        self.wrap()
+        opos,h1pos,h2pos,cpos,blank3 = self.positions()
     
-    #     return (opos,h1pos,h2pos,cpos,ocpos1,ocpos2)
+        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,cpos)
         
-    # def wrap(self):
+    def wrap(self):
         
-    #     ag = self._u.atoms
-    #     transform = wrap(ag)
-    #     self._u.trajectory.add_transformations(transform)
+        ag = self._u.atoms
+        transform = wrap(ag)
+        self._u.trajectory.add_transformations(transform)
         
 
     def positions(self):
@@ -35,8 +39,6 @@ class AtomPos:
         h2_traj = []
         cpos_traj = []
         ocpos_traj = []
-
-
 
         length = len(self._u.trajectory[:self._end])
         print('Parsing through frames.')
@@ -54,32 +56,26 @@ class AtomPos:
             h1_traj.append(h1pos)
             h2_traj.append(h2pos)
 
-            # c_oc_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
-            #                         self._u.select_atoms('name' + ' OC').positions, 
-            #                         box=self._u.dimensions)
-
-            cpos = self._u.select_atoms('name' + ' C').positions
-            ocpos = self._u.select_atoms('name' + ' OC').positions
-
-            cpos_traj.append(cpos)
+            cpos = self._u.select_atoms('name C').positions
+            ocpos = self._u.select_atoms('name OC').positions
+            cpos_traj.append(cpos)  
             ocpos_traj.append(ocpos)
-
-
+    
         return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos_traj)
     
     
-    # def carbon(self):
-    #     '''Load trajectory for the carbon species.
-    #     Returns arrays of C and OC positions for each frame '''
-    #     cpos_traj = []
-    #     ocpos_traj = []
-    #     for ts in self._u.trajectory[:self._end]:
-    #         cpos = self._u.select_atoms('name C').positions
-    #         ocpos = self._u.select_atoms('name OC').positions
-    #         cpos_traj.append(cpos)  
-    #         ocpos_traj.append(ocpos)
+    def carbon(self):
+        '''Load trajectory for the carbon species.
+        Returns arrays of C and OC positions for each frame '''
+        cpos_traj = []
+        ocpos_traj = []
+        for ts in self._u.trajectory[:self._end]:
+            cpos = self._u.select_atoms('name C').positions
+            ocpos = self._u.select_atoms('name OC').positions
+            cpos_traj.append(cpos)  
+            ocpos_traj.append(ocpos)
     
-    #     return (cpos_traj,ocpos_traj)
+        return (cpos_traj,ocpos_traj)
     
     
     def conclude(self):

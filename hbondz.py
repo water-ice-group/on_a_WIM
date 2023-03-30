@@ -21,7 +21,7 @@ class Hbondz:
 
         
         
-    def count(self, opos, h1pos, h2pos, wc,lower,upper,bins):
+    def count(self, opos, h1pos, h2pos, wc, wrap_opos,lower,upper,bins):
         '''For each timeframe, determine the HBond count.'''
         
         # need to determine whether this is an instance of double counting or not. 
@@ -34,8 +34,8 @@ class Hbondz:
         crit2 = np.where(angle_array > 150.0)
         ox_idx = crit_1a[crit2]
         acc_idx = crit_1b[crit2]
-        list_1 = [opos[i] for i in ox_idx]
-        list_2 = [opos[i] for i in acc_idx]
+        list_1 = [wrap_opos[i] for i in ox_idx]
+        list_2 = [wrap_opos[i] for i in acc_idx]
 
         
         angle_array = calc_angles(opos[crit_1a],h2pos[crit_1a],opos[crit_1b],box=self._u.dimensions)
@@ -44,14 +44,14 @@ class Hbondz:
         crit2 = np.where(angle_array > 150.0)
         ox_idx = crit_1a[crit2]
         acc_idx = crit_1b[crit2]
-        list_3 = [opos[i] for i in ox_idx]
-        list_4 = [opos[i] for i in acc_idx]
+        list_3 = [wrap_opos[i] for i in ox_idx]
+        list_4 = [wrap_opos[i] for i in acc_idx]
 
         O_hbond_list = list_1 + list_2 + list_3 + list_4
 
         dens = Density(self._u)
         dist = dens.proximity(wc,O_hbond_list,'mag')
-        dist_norm = dens.proximity(wc,opos,'mag')
+        dist_norm = dens.proximity(wc,wrap_opos,'mag')
         hist,xrange = np.histogram(dist,bins=bins,range=[lower,upper])
         hist_norm,xrange = np.histogram(dist_norm,bins=bins,range=[lower,upper])
 
@@ -78,3 +78,6 @@ def hbondPlot(hist,lower,upper):
     ax.set_ylim(0,4)
     plt.savefig('./outputs/hbond_profile.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
+
+            
+        

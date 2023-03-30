@@ -4,8 +4,6 @@
 
 import numpy as np
 from MDAnalysis.analysis.distances import distance_array
-from MDAnalysis.analysis.distances import dist
-from MDAnalysis.transformations.wrap import wrap
 from scipy import interpolate
 from interface import WC_Interface
 import matplotlib.pyplot as plt
@@ -37,15 +35,13 @@ class Density:
         for i in range(len(pos)):
             if loc[i] < surf_div: # upper surface first
                 z_unit  = [0,0,-1]
-                #wrap_pos = wrap([pos[i]])
                 vect = pos[i] - WC_spline[loc[i]]
                 scal_proj = np.dot(vect,z_unit)
                 mag.append(scal_proj)
                 vect_list.append(vect)
-
+            #elif loc[i] > surf_div: # then the lower surface
             else:
                 z_unit  = [0,0,1]
-                #wrap_pos = wrap([pos[i]])
                 vect = pos[i] - WC_spline[loc[i]]
                 scal_proj = np.dot(vect,z_unit)
                 mag.append(scal_proj)
@@ -109,3 +105,14 @@ def dens_plot(data_Oxygen,data_Carbon=None,lower=-15,upper=15):
     plt.savefig('./outputs/dens_plot.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
         
+
+
+
+
+
+
+
+
+
+
+

@@ -13,7 +13,7 @@ class Orientation:
                  **kwargs):
         self._u = universe
     
-    def _getCosTheta(self,ox,h1,h2,wc):
+    def _getCosTheta(self,ox,h1,h2,wc,opos):
 
         vect1 = np.subtract(h1,ox)
         vect2 = np.subtract(h2,ox)
@@ -21,7 +21,7 @@ class Orientation:
         unitvect = ( mid / np.linalg.norm(mid, axis=1)[:, None] )
 
         dens = Density(self._u)
-        dist,surf_vect = dens.proximity(wc,ox,'both')
+        dist,surf_vect = dens.proximity(wc,opos,'both')
 
         cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
         
@@ -77,3 +77,5 @@ def oriPlot(hist,smooth=2):
     ax.set_ylabel(r'P<cos($\theta$)>')
     plt.savefig('./outputs/orientation.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
+
+
