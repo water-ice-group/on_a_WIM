@@ -37,7 +37,7 @@ class WillardChandler:
         print()
 
         pos = AtomPos(self._u,self._end)
-        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._cpos = pos.prepare()
+        self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos = pos.positions()
         
         inter = WC_Interface(self._u,grid)
         opos_traj = self._opos
@@ -133,7 +133,7 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating orientation profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._unopos))))
+        result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i]) for i in tqdm(range(len(self._opos))))
         
         dist = [i[0] for i in result]
         theta = [i[1] for i in result]
@@ -176,7 +176,7 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating H-Bond profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(counter.count)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i],lower,upper,bins) for i in tqdm(range(len(self._opos))))
+        result = Parallel(n_jobs=num_cores)(delayed(counter.count)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],lower,upper,bins) for i in tqdm(range(len(self._opos))))
         print('Generating histogram(s)')
 
         hist_list = [0] * len(result[0])
