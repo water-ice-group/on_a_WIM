@@ -16,14 +16,14 @@ class AtomPos:
     def prepare(self):
         
         print('Unwrapped coordinates')
-        unopos,unh1pos,unh2pos,blank1,blank2 = self.positions()
+        unopos,unh1pos,unh2pos,uncpos,unocpos = self.positions()
         print()
 
         print('Wrapped coordinates')
         self.wrap()
-        opos,h1pos,h2pos,cpos,blank3 = self.positions()
+        opos,h1pos,h2pos,cpos,ocpos = self.positions()
     
-        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,cpos)
+        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,uncpos,unocpos,cpos,ocpos)
         
     def wrap(self):
         
@@ -56,10 +56,26 @@ class AtomPos:
             h1_traj.append(h1pos)
             h2_traj.append(h2pos)
 
-            cpos = self._u.select_atoms('name C').positions
-            ocpos = self._u.select_atoms('name OC').positions
-            cpos_traj.append(cpos)  
-            ocpos_traj.append(ocpos)
+            c_oc_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
+                                    self._u.select_atoms('name' + ' OC').positions, 
+                                    box=self._u.dimensions)
+            
+
+            try:
+                idx = np.argpartition(c_oc_dist, 3, axis=-1)
+                cpos = self._u.select_atoms('name' + ' C').positions
+                oc1pos = self._u.select_atoms('name' + ' OC')[idx[:, 0]].positions
+                oc2pos = self._u.select_atoms('name' + ' OC')[idx[:, 1]].positions
+
+                cpos_traj.append(cpos)
+                ocpos_traj.append(oc1pos)
+
+            except:
+                cpos = self._u.select_atoms('name' + ' C').positions
+                ocpos = self._u.select_atoms('name' + ' OC').positions
+
+                cpos_traj.append(cpos)
+                ocpos_traj.append(ocpos)
     
         return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos_traj)
     

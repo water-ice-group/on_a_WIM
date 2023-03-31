@@ -37,7 +37,7 @@ class WillardChandler:
         print()
 
         pos = AtomPos(self._u,self._end)
-        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._cpos = pos.prepare()
+        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._uncpos,self._unocpos,self._cpos,self._ocpos = pos.prepare()
         
         inter = WC_Interface(self._u,grid)
         opos_traj = self._opos
@@ -121,20 +121,29 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Orientation
-    def Orientation_run(self,bins=200,lower=-20,upper=0):
+    def Orientation_run(self,atomtype='water',bins=200,lower=-20,upper=0):
         '''Obtain the orientation of the species relative to the WC interface.'''
         
         cosTheta_list = []
         dist_list = []
-        ori = Orientation(self._u)        
+        ori = Orientation(self._u)  
+        self._ori_lower = lower
+        self._ori_upper = upper      
         
         print()
         print(f'Obtaining orientations.')
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating orientation profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._unopos))))
-        
+
+        if atomtype == 'water':
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._opos))))
+        elif atomtype == 'carbon':
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._uncpos[i],self._unocpos[i],self._WC[i],self._cpos[i]) for i in tqdm(range(len(self._cpos))))
+        else:
+            print('Specify atom type.')
+
+
         dist = [i[0] for i in result]
         theta = [i[1] for i in result]
         
@@ -154,8 +163,8 @@ class WillardChandler:
         print()
         return result
     
-    def Orientation_plot(self):
-        oriPlot(self._ori)
+    def Orientation_plot(self,data_Oxygen,data_Carbon=None):
+        oriPlot(data_Oxygen,data_Carbon,self._ori_lower,self._ori_upper)
 
     # ------------------------------------------------------------------------
 
