@@ -28,7 +28,7 @@ data_Oxygen = WC_inter.Density_run('OW',500,-15,15)
 data_Carbon = WC_inter.Density_run('C',500,-15,15)
 
 # density plot
-#WC_inter.Density_plot(data_Oxygen,data_Carbon)
+WC_inter.Density_plot(data_Oxygen,data_Carbon)
 
 
 # orientational analysis

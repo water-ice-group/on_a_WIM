@@ -94,19 +94,18 @@ class WillardChandler:
         print('Generating histogram(s)')
 
         hist_input = np.concatenate(result).ravel()
-        if atom_type == 'OW':
-            density,x_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
-            self._waterno = density
-            water_dens = 18.01528
-            N_A = 6.022*10**23
-            xy = self._u.dimensions[0]
-            hist_range = upper - lower
-            result_hist = [(i*water_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density]
-            
-        elif atom_type == 'C':
-            density,x_range = np.histogram(hist_input,bins=bins,range=[lower,upper],density=True)
-            result_hist = density
         
+        density,x_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
+        N_A = 6.022*10**23
+        xy = self._u.dimensions[0]
+        hist_range = upper - lower
+        if atom_type == 'OW':
+            mol_dens = 18.01528
+            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density]
+        elif atom_type == 'C':
+            mol_dens = 44.0095 # density of CO2 - XAVI, PROBABLY CHANGE THIS TO 12 
+            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density] 
+
         save_dat = np.array([x_range[:-1],result_hist])
         save_dat = save_dat.transpose()
         np.savetxt('./outputs/' + atom_type + '_dens.dat',save_dat)
