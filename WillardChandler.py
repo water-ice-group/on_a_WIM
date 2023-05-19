@@ -137,7 +137,7 @@ class WillardChandler:
         print('Calculating orientation profile ...')
 
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._opos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._opos))))
         elif atomtype == 'carbon':
             result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._uncpos[i],self._unocpos[i],self._WC[i],self._cpos[i]) for i in tqdm(range(len(self._cpos))))
         else:
