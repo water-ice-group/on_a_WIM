@@ -7,16 +7,22 @@ import math as m
 import matplotlib.pyplot as plt
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.lib.distances import calc_angles
+from MDAnalysis.analysis.hydrogenbonds import HydrogenBondAnalysis
 from scipy import stats
+import multiprocessing
+from joblib import Parallel, delayed
+from tqdm import tqdm
+
 
 
 class Hbondz:
     '''calculate the number of H bonds in system as a function of 
     z-coordinate.'''
     
-    def __init__(self, universe, **kwargs):
+    def __init__(self, universe, upper_z, **kwargs):
 
         self._u = universe
+        self._uz = upper_z
 
 
         
@@ -50,8 +56,8 @@ class Hbondz:
         O_hbond_list = list_1 + list_2 + list_3 + list_4
 
         dens = Density(self._u)
-        dist = dens.proximity(wc,O_hbond_list,'mag')
-        dist_norm = dens.proximity(wc,wrap_opos,'mag')
+        dist = dens.proximity(wc,O_hbond_list,upper=self._uz,result='mag')
+        dist_norm = dens.proximity(wc,wrap_opos,upper=self._uz,result='mag')
         hist,xrange = np.histogram(dist,bins=bins,range=[lower,upper])
         hist_norm,xrange = np.histogram(dist_norm,bins=bins,range=[lower,upper])
 
@@ -67,15 +73,109 @@ class Hbondz:
         return hist_final
 
 
-    
 
-def hbondPlot(hist,lower,upper):
+
+    #################################################################################
+    ############################# MDAnalysis Module #################################
+    #################################################################################
+
+
+    def parse_frames(self,hbond_result):
+        '''Function to parse through the HBonding results.
+        Filter the time and the donor and acceptor positions.
+        Input consists of indivudual time frames.'''
+        
+        self._u.trajectory[hbond_result[0].astype(int)] # set the time frame
+        time = hbond_result[0].astype(int) # append the time
+        donor = self._u.atoms[hbond_result[1].astype(int)].position # append donor positions
+        acceptor = self._u.atoms[hbond_result[3].astype(int)].position # append acceptor positions
+        return (time,donor,acceptor)
+
+
+    def hbond_analysis(self,wc,lower,upper,stop,bins=250):
+        hbonds = HydrogenBondAnalysis(universe=self._u,
+                                      donors_sel='name OW OC',
+                                      hydrogens_sel='name H',
+                                      acceptors_sel='name OW OC')
+        hbonds.run(stop=stop)
+
+        # hbonds will return results of the following form
+        # [frame, donor_ID, H_ID, acceptor_ID, bond_distance, angle]
+
+
+        output_arr = np.array(hbonds.results.hbonds)
+        time = output_arr[:,0]
+        don_id = output_arr[:,1]
+        acc_id = output_arr[:,3]
+        counts = hbonds.times
+
+        print(counts[0])
+
+        # create dictionary to store results
+        steps = [i[0] for i in hbonds.results.hbonds] # will feature multiple occurences of the same step
+        tot_steps = int(max(steps))
+        data = dict()
+        for i in range(tot_steps + 1):
+            data[int(i)] = [[],[]]
+        self._data = data
+
+        # parse through frames to accquire donors and acceptors. 
+        print('Collecting H Bond data.')
+        num_cores = multiprocessing.cpu_count()
+        result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(hbonds.results.hbonds[i]) for i in tqdm(range(len(hbonds.results.hbonds)))) 
+        
+        time = []
+        for i in range(len(result)):
+            time.append(result[i][0])
+            data[int(result[i][0])][0].append(result[i][1])
+            data[int(result[i][0])][1].append(result[i][2])
+
+        print('Running proximity calculations.')
+        dens = Density(self._u)
+        num_cores = multiprocessing.cpu_count()
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],data[i][0],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],data[i][1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
+
+        dist_don = np.concatenate(result_don).ravel()
+        dist_acc = np.concatenate(result_acc).ravel()
+
+        print('Acquiring background density.')
+        ox_pos = []
+        sel = self._u.select_atoms('name OW OC')
+        for ts in self._u.trajectory[:stop]:
+            ox_pos.append(sel.positions)
+        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],upper=self._uz) for i in tqdm(range(0,tot_steps)))
+        bkg_dist = np.concatenate(bkg_dens).ravel()
+
+        print('Binning.')
+        hist_don,don_range = np.histogram(dist_don,bins=bins,range=[lower,upper])
+        hist_acc,acc_range = np.histogram(dist_acc,bins=bins,range=[lower,upper])
+        hist_bkg,bkg_range = np.histogram(bkg_dist,bins=bins,range=[lower,upper])
+        hist_don = [(hist_don[i]/hist_bkg[i]) for i in range(len(hist_don))] # need to divide by a total number of steps???
+        hist_acc = [(hist_acc[i]/hist_bkg[i]) for i in range(len(hist_acc))] # need to divide by a total number of steps???
+        don_range = 0.5*(don_range[1:]+don_range[:-1])
+        acc_range = 0.5*(acc_range[1:]+acc_range[:-1])
+
+        don_dat = np.array([don_range,hist_don])
+        don_dat = don_dat.transpose()
+        acc_dat = np.array([acc_range,hist_acc])
+        acc_dat = acc_dat.transpose()
+        np.savetxt('./outputs/donor.dat',don_dat)
+        np.savetxt('./outputs/acceptor.dat',acc_dat)
+
+        return (hist_don,don_range,hist_acc,acc_range)
+
+
+
+def hbondPlot(don,donx,acc,accx,lower,upper):
     fig, ax = plt.subplots()
-    ax.plot(hist[1],hist[0],'.-')
+    ax.plot(donx,don,'.-',label='Donors')
+    ax.plot(accx,acc,'.-',label='Acceptors')
     ax.set_xlabel('Distance / $\mathrm{\AA}$')
     ax.set_ylabel('HBond count')
     ax.set_xlim(lower,upper)
     ax.set_ylim(0,4)
+    ax.legend()
     plt.savefig('./outputs/hbond_profile.pdf',dpi=400,bbox_inches='tight',facecolor=fig.get_facecolor(), edgecolor='none')
     plt.show()
 

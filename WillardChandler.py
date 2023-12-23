@@ -22,12 +22,12 @@ class WillardChandler:
     '''Module for generating a Willard-Chandler interface and using this
     interface to calculate properties such as density and orientation.'''
 
-    def __init__(self, universe, endstep=None):    
+    def __init__(self, universe, upper_z, endstep=None):    
         self._u = universe
         self._end = endstep
-        
+        self._uz = upper_z
 
-    def generate(self,grid=400):
+    def generate(self,grid=400,new_inter=True):
         '''Generate the WC interface.'''
         
         print()
@@ -36,33 +36,51 @@ class WillardChandler:
         print('---------------------')
         print()
 
+        # create position object and extract positions (wrapped/unwrapped)
         pos = AtomPos(self._u,self._end)
-        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._uncpos,self._unocpos,self._cpos,self._ocpos = pos.prepare()
-        
-        inter = WC_Interface(self._u,grid)
-        opos_traj = self._opos
-        num_cores = multiprocessing.cpu_count()
-        
-        print()
-        print(f'Number of cores: {num_cores}')
-        print()
+        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._uncpos,self._unocpos1,self._unocpos2,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
+        opos_traj = self._opos # wrapped oxygen coordinates to form the main coords to generatin the interface. 
 
-        grid = inter.grid_spacing()
+        # create interface object
+        inter = WC_Interface(self._u,grid,self._uz)
 
-        print('Generating frames ...')
-        result = Parallel(n_jobs=num_cores)(delayed(inter.criteria)(i,grid) for i in tqdm(opos_traj))
-        self._WC = result
+        if new_inter==True: # generate new interfacial surface
+
+            # no. of cores
+            num_cores = multiprocessing.cpu_count()
+            print()
+            print(f'Number of cores: {num_cores}')
+            print()
+
+            # run the parallelised jobs
+            print('Generating frames ...')
+            grid = inter.grid_spacing()
+            result = Parallel(n_jobs=num_cores)(delayed(inter.criteria)(opos_traj[i],grid,self._boxdim[i]) for i in tqdm(range(len(opos_traj))))
+            self._WC = result
+
+            print('Done')
+            print()
+        
+        elif new_inter==False: # load existing surface
+            result = self.load(inter)
+            self._WC = result
+
         self.inter = inter
-
-        print('Done')
-        print()
-
         return self._WC
-
     
     # save coordinates for visualisation
-    def visualise(self):  
+    def save(self):  
         self.inter.save_coords(self._WC)
+
+    def load(self,inter):
+        wc_univ = inter.load_coords()
+        loaded_coords = []
+        sel = wc_univ.select_atoms('all')
+        for ts in wc_univ.trajectory:
+            pos = sel.positions
+            loaded_coords.append(pos)
+
+        return loaded_coords
         
         
         
@@ -71,7 +89,7 @@ class WillardChandler:
     ##########################################################################
         
     # Density
-    def Density_run(self,atom_type,bins=200,lower=-20,upper=10):
+    def Density_run(self,atom_type,bins=400,lower=-10,upper=10):
         '''Obtain the density of species relative to the WC interface.'''
 
         self._dens_lower = lower
@@ -89,7 +107,7 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i]) for i in tqdm(range(len(traj))))
+        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],upper=self._uz) for i in tqdm(range(len(traj))))
         self._dens_result = result
         print('Generating histogram(s)')
 
@@ -101,10 +119,10 @@ class WillardChandler:
         hist_range = upper - lower
         if atom_type == 'OW':
             mol_dens = 18.01528
-            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density]
+            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
         elif atom_type == 'C':
-            mol_dens = 44.0095 # density of CO2 - XAVI, PROBABLY CHANGE THIS TO 12 
-            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (2*len(traj)) * 10**6) for i in density] 
+            mol_dens = 44.0095 
+            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
 
         save_dat = np.array([x_range[:-1],result_hist])
         save_dat = save_dat.transpose()
@@ -120,11 +138,9 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Orientation
-    def Orientation_run(self,atomtype='water',bins=200,lower=-20,upper=0):
+    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10):
         '''Obtain the orientation of the species relative to the WC interface.'''
         
-        cosTheta_list = []
-        dist_list = []
         ori = Orientation(self._u)  
         self._ori_lower = lower
         self._ori_upper = upper      
@@ -136,9 +152,9 @@ class WillardChandler:
         print('Calculating orientation profile ...')
 
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i]) for i in tqdm(range(len(self._opos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i],self._uz) for i in tqdm(range(len(self._opos))))
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._uncpos[i],self._unocpos[i],self._WC[i],self._cpos[i]) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._uncpos[i],self._unocpos1[i],self._unocpos2[i],self._WC[i],self._cpos[i],self._uz) for i in tqdm(range(len(self._cpos))))
         else:
             print('Specify atom type.')
 
@@ -151,16 +167,33 @@ class WillardChandler:
         dist_array = np.concatenate(dist).ravel()
         Theta_array = np.concatenate(theta).ravel()
         
-        result = ori._getHistogram(dist_array,
-                                   Theta_array,
-                                   bins=bins,hist_range=[lower,upper])
-        
+        if histtype=='time':
+            result = ori._getHistogram(dist_array,
+                                    Theta_array,
+                                    bins=bins,hist_range=[lower,upper])
+            np.savetxt(f'./outputs/orientation_{atomtype}.dat',result)
+            self._ori = result
+            print('Done.')
+            print()
+            return result
 
-        np.savetxt('./outputs/orientation.dat',result)
-        self._ori = result
-        print('Done.')
-        print()
-        return result
+        elif histtype=='heatmap':
+            hist,x_edges,y_edges = ori._getHeatMap(dist_array,
+                                     Theta_array,
+                                     bins=bins,hist_range=[lower,upper])
+            H = hist.T
+
+            X, Y = np.meshgrid(x_edges[:-1] + 0.5 * (x_edges[1] - x_edges[0]), 
+                   y_edges[:-1] + 0.5 * (y_edges[1] - y_edges[0]))
+
+            np.savetxt(f'./outputs/heatmap_X_{atomtype}.dat',X)
+            np.savetxt(f'./outputs/heatmap_Y_{atomtype}.dat',Y)
+            np.savetxt(f'./outputs/heatmap_hist_{atomtype}.dat',H)
+            return (X,Y,H)
+
+
+
+    
     
     def Orientation_plot(self,data_Oxygen,data_Carbon=None):
         oriPlot(data_Oxygen,data_Carbon,self._ori_lower,self._ori_upper)
@@ -175,38 +208,22 @@ class WillardChandler:
         self._hbond_lower = lower
         self._hbond_upper = upper
 
-        hbonds = []
-        counter = Hbondz(self._u)
+        counter = Hbondz(self._u,self._uz)
         
 
         print()
         print(f'Obtaining Hbonds.')
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._end,bins)
 
-        num_cores = multiprocessing.cpu_count()
-        print('Calculating H-Bond profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(counter.count)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i],lower,upper,bins) for i in tqdm(range(len(self._opos))))
-        print('Generating histogram(s)')
+        self._don = hist_don
+        self._donx = don_range
+        self._acc = hist_acc
+        self._accx = acc_range
 
-        hist_list = [0] * len(result[0])
-        for i in range(len(result[0])):
-            for j in range(len(result)):
-                hist_list[i] += result[j][i]
-
-        hist_list = np.array(hist_list)
-        
-        hist_adj = hist_list/len(self._WC)
-        print('Done.')
-        print()
-
-        xrange = np.linspace(lower,upper,bins)
-
-        output = np.array([ [xrange[i],hist_adj[i]] for i in range(len(xrange)-1)])
-        np.savetxt('./outputs/hbonds.dat',output)
-        self._hbonds = (hist_adj,xrange)
-        return (hist_adj,xrange)
+        return ((hist_don,don_range),(hist_acc,acc_range))
     
     def HBondz_plot(self):
-        hbondPlot(self._hbonds,self._hbond_lower,self._hbond_upper)
+        hbondPlot(self._don,self._donx,self._acc,self._accx,self._hbond_lower,self._hbond_upper)
         
 
 

@@ -13,7 +13,7 @@ class Orientation:
                  **kwargs):
         self._u = universe
     
-    def _getCosTheta(self,ox,h1,h2,wc,opos):
+    def _getCosTheta(self,ox,h1,h2,wc,opos,upper_z):
 
         vect1 = np.subtract(h1,ox)
         vect2 = np.subtract(h2,ox)
@@ -21,23 +21,35 @@ class Orientation:
         unitvect = ( mid / np.linalg.norm(mid, axis=1)[:, None] )
 
         dens = Density(self._u)
-        dist,surf_vect = dens.proximity(wc,opos,'both')
+        dist,surf_vect = dens.proximity(wc,opos,upper=upper_z,result='both')
 
         cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
         
         return (np.array(dist),np.array(cosTheta))
     
-    def _getCosTheta_Carbon(self,c,oc,wc,cpos):
+    def _getCosTheta_Carbon(self,c,oc1,oc2,wc,cpos,upper_z):
 
-        if len(oc) < 3:
-            vect = np.subtract(oc[0],c)
-        else:
-            vect = np.subtract(oc,c)
+        vect1 = np.subtract(oc1,c)
+        vect2 = np.subtract(oc2,c)
+        mid = - np.add(vect1,vect2)/2
+        unitvect = ( mid / np.linalg.norm(mid, axis=1)[:, None] )
 
-        unitvect = ( vect / np.linalg.norm(vect, axis=1)[:, None] )
         dens = Density(self._u)
-        dist,surf_vect = dens.proximity(wc,cpos,'both')
+        dist,surf_vect = dens.proximity(wc,cpos,upper=upper_z,result='both')
+
         cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+
+
+        # if len(oc1) < 3:
+        #     vect = np.subtract(oc[0],c)
+        # else:
+        #     vect = np.subtract(oc,c)
+
+        # unitvect = ( vect / np.linalg.norm(vect, axis=1)[:, None] )
+        # dens = Density(self._u)
+        # dist,surf_vect = dens.proximity(wc,cpos,upper=upper_z,result='both')
+        # cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+
         return (np.array(dist),np.array(cosTheta))
 
 
@@ -53,11 +65,10 @@ class Orientation:
                                                          statistic='count', bins=bins,
                                                          range=hist_range)
         
-        print(counts)
 
         final = []
         for i in range(len(counts)):
-            if counts[i] > max(counts)*0.1:
+            if counts[i] > max(counts)*0.2:
                 final.append(means[i])
             else:
                 final.append(0)
@@ -66,6 +77,14 @@ class Orientation:
         hist = np.array([edges, final])
         hist = hist.transpose()
         return (hist)
+    
+
+    def _getHeatMap(self,dist, cosThetra, bins=200,hist_range=[-10,10]):
+        hist, x_edges, y_edges = np.histogram2d(dist,cosThetra, bins=50,density=True,
+                                        range=[hist_range,[-1,1]]
+                                        )
+        
+        return (hist,x_edges,y_edges)
     
 
 

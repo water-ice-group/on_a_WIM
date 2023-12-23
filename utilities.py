@@ -3,6 +3,8 @@ from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.transformations.wrap import wrap,unwrap
 import numpy as np
 import tqdm as tqdm
+import os
+
 
 class AtomPos: 
     
@@ -15,15 +17,20 @@ class AtomPos:
         
     def prepare(self):
         
+        if os.path.isdir('./outputs'):
+            print('Output directory detected.')
+        else:
+            os.mkdir('./outputs')
+
         print('Unwrapped coordinates')
-        unopos,unh1pos,unh2pos,uncpos,unocpos = self.positions()
+        unopos,unh1pos,unh2pos,uncpos,unocpos1,unocpos2,*_ = self.positions()
         print()
 
         print('Wrapped coordinates')
         self.wrap()
-        opos,h1pos,h2pos,cpos,ocpos = self.positions()
+        opos,h1pos,h2pos,cpos,ocpos1,ocpos2,box_dim = self.positions()
     
-        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,uncpos,unocpos,cpos,ocpos)
+        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,uncpos,unocpos1,unocpos2,cpos,ocpos1,ocpos2,box_dim)
         
     def wrap(self):
         
@@ -38,7 +45,9 @@ class AtomPos:
         h1_traj = []
         h2_traj = []
         cpos_traj = []
-        ocpos_traj = []
+        ocpos1_traj = []
+        ocpos2_traj = []
+        box_dim = []
 
         length = len(self._u.trajectory[:self._end])
         print('Parsing through frames.')
@@ -68,16 +77,19 @@ class AtomPos:
                 oc2pos = self._u.select_atoms('name' + ' OC')[idx[:, 1]].positions
 
                 cpos_traj.append(cpos)
-                ocpos_traj.append(oc1pos)
+                ocpos1_traj.append(oc1pos)
+                ocpos2_traj.append(oc2pos)
 
             except:
                 cpos = self._u.select_atoms('name' + ' C').positions
                 ocpos = self._u.select_atoms('name' + ' OC').positions
 
                 cpos_traj.append(cpos)
-                ocpos_traj.append(ocpos)
+                ocpos1_traj.append(ocpos)
+
+            box_dim.append(self._u.dimensions)
     
-        return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos_traj)
+        return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos1_traj,ocpos2_traj,box_dim)
     
     
     def carbon(self):
