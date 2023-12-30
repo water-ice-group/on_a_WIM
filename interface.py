@@ -58,7 +58,7 @@ class WC_Interface:
 
         density_field = []
         array = np.array(manifold)
-        dist =  distance_array(array,opos,box=boxdim) # will taking account of the dimension eliminated need for wrapped coordinates. 
+        dist =  distance_array(array,opos,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
 
         dens_array = self.gaussian(dist) # return gaussian for each of the grid points (rows) calculated per atom (columns)
         density_field = np.sum(dens_array,axis=1) # sum the gaussians along the columns (atoms) for each row (grid point)
@@ -76,8 +76,6 @@ class WC_Interface:
         inter_tot = []
 
         for i in range(int(len(field)/self._gs)):
-
-            
 
             # extract field values at different z along point in the x/y.
             z_field = field[i*self._gs:(i+1)*self._gs]
@@ -165,10 +163,7 @@ class WC_Interface:
         trj = './outputs/inter.dcd'
 
         if os.path.isfile(pdb) and os.path.isfile(trj):
-            print()
             print('Loading files.')
-            print()
-
             u = mda.Universe(pdb,trj)
 
             return u

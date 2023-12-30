@@ -92,11 +92,13 @@ class Hbondz:
         return (time,donor,acceptor)
 
 
-    def hbond_analysis(self,wc,lower,upper,stop,bins=250):
+    def hbond_analysis(self,wc,lower,upper,stop,boxdim,bins=250):
         hbonds = HydrogenBondAnalysis(universe=self._u,
                                       donors_sel='name OW OC',
                                       hydrogens_sel='name H',
-                                      acceptors_sel='name OW OC')
+                                      acceptors_sel='name OW OC',
+                                      d_a_cutoff=3.5,
+                                      d_h_a_angle_cutoff=140)
         hbonds.run(stop=stop)
 
         # hbonds will return results of the following form
@@ -133,8 +135,8 @@ class Hbondz:
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
-        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],data[i][0],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],data[i][1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][0]),boxdim[i-1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][1]),boxdim[i-1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
 
         dist_don = np.concatenate(result_don).ravel()
         dist_acc = np.concatenate(result_acc).ravel()
@@ -144,7 +146,7 @@ class Hbondz:
         sel = self._u.select_atoms('name OW OC')
         for ts in self._u.trajectory[:stop]:
             ox_pos.append(sel.positions)
-        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],upper=self._uz) for i in tqdm(range(0,tot_steps)))
+        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range(0,tot_steps)))
         bkg_dist = np.concatenate(bkg_dens).ravel()
 
         print('Binning.')

@@ -4,6 +4,7 @@
 
 import numpy as np
 from MDAnalysis.analysis.distances import distance_array
+from MDAnalysis.lib import distances
 from scipy import interpolate
 from interface import WC_Interface
 import matplotlib.pyplot as plt
@@ -19,29 +20,32 @@ class Density:
         
     
 
-    def proximity(self,WC_inter,inp,upper=25,result='mag'):
+    def proximity(self,WC_inter,inp,boxdim,upper=25,result='mag'):
         '''Obtain the proximities of each particular molecule to the WC interface.'''
-        '''Input of a single frame into the function.'''
+        '''Input of a SINGLE FRAME into the function.'''
         
         pos = []
+        wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
         inp = np.array(inp)
+        wrap = np.array(wrap)
         for i in range(len(inp)):
-            if (inp[i][2] >= 0) and (inp[i][2] < (2*upper)):
-                pos.append(inp[i])
-        pos = np.array(pos)
+            if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
+                pos.append(wrap[i]) # append the unwrapped coordinates?
+        pos = np.array(wrap)
 
 
-        WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))
+        WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
         
         
-        dist_mat = distance_array(pos, WC_spline, box=self._u.dimensions)
+        dist_mat = distance_array(pos, WC_spline, box=self._u.dimensions) # should account for the wrapping. 
         proxim = np.min(dist_mat,axis=1) # obtain min for each row/atom. 
-        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]
+        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))] # obtain splined interface coordinate closest to the ox positions. 
         
         mag = []
         vect_list = []
         for i in range(len(pos)):
             z_unit  = [0,0,-1]
+            #vect = distances.apply_PBC(pos[i] - WC_spline[loc[i]],boxdim)
             vect = pos[i] - WC_spline[loc[i]]
             scal_proj = np.dot(vect,z_unit)
             mag.append(scal_proj)

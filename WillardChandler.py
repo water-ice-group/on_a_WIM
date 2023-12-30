@@ -36,9 +36,9 @@ class WillardChandler:
         print('---------------------')
         print()
 
-        # create position object and extract positions (wrapped/unwrapped)
+        # create position object and extract positions (unwrapped)
         pos = AtomPos(self._u,self._end)
-        self._unopos,self._unh1pos,self._unh2pos,self._opos,self._h1pos,self._h2pos,self._uncpos,self._unocpos1,self._unocpos2,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
+        self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
         opos_traj = self._opos # wrapped oxygen coordinates to form the main coords to generatin the interface. 
 
         # create interface object
@@ -107,7 +107,7 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],upper=self._uz) for i in tqdm(range(len(traj))))
+        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz) for i in tqdm(range(len(traj)))) # parse through frames
         self._dens_result = result
         print('Generating histogram(s)')
 
@@ -152,9 +152,9 @@ class WillardChandler:
         print('Calculating orientation profile ...')
 
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._unopos[i],self._unh1pos[i],self._unh2pos[i],self._WC[i],self._opos[i],self._uz) for i in tqdm(range(len(self._opos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._uz,self._boxdim[i]) for i in tqdm(range(len(self._opos))))
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._uncpos[i],self._unocpos1[i],self._unocpos2[i],self._WC[i],self._cpos[i],self._uz) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._uz,self._boxdim[i]) for i in tqdm(range(len(self._cpos))))
         else:
             print('Specify atom type.')
 
@@ -213,7 +213,7 @@ class WillardChandler:
 
         print()
         print(f'Obtaining Hbonds.')
-        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._end,bins)
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._end,self._boxdim,bins)
 
         self._don = hist_don
         self._donx = don_range
@@ -225,16 +225,3 @@ class WillardChandler:
     def HBondz_plot(self):
         hbondPlot(self._don,self._donx,self._acc,self._accx,self._hbond_lower,self._hbond_upper)
         
-
-
-
-
-
-
-           
-
-           
-
-        
-
-    

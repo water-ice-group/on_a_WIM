@@ -22,21 +22,12 @@ class AtomPos:
         else:
             os.mkdir('./outputs')
 
-        print('Unwrapped coordinates')
-        unopos,unh1pos,unh2pos,uncpos,unocpos1,unocpos2,*_ = self.positions()
         print()
-
-        print('Wrapped coordinates')
-        self.wrap()
+        print('Obtaining atom coordinates.')
         opos,h1pos,h2pos,cpos,ocpos1,ocpos2,box_dim = self.positions()
+        print()
     
-        return (unopos,unh1pos,unh2pos,opos,h1pos,h2pos,uncpos,unocpos1,unocpos2,cpos,ocpos1,ocpos2,box_dim)
-        
-    def wrap(self):
-        
-        ag = self._u.atoms
-        transform = wrap(ag)
-        self._u.trajectory.add_transformations(transform)
+        return (opos,h1pos,h2pos,cpos,ocpos1,ocpos2,box_dim)
         
 
     def positions(self):
@@ -70,7 +61,7 @@ class AtomPos:
                                     box=self._u.dimensions)
             
 
-            try:
+            try: 
                 idx = np.argpartition(c_oc_dist, 3, axis=-1)
                 cpos = self._u.select_atoms('name' + ' C').positions
                 oc1pos = self._u.select_atoms('name' + ' OC')[idx[:, 0]].positions
@@ -80,7 +71,7 @@ class AtomPos:
                 ocpos1_traj.append(oc1pos)
                 ocpos2_traj.append(oc2pos)
 
-            except:
+            except:  # allow exception for single co2 molecule (partitioning breaks for this.)
                 cpos = self._u.select_atoms('name' + ' C').positions
                 ocpos = self._u.select_atoms('name' + ' OC').positions
 
@@ -90,24 +81,4 @@ class AtomPos:
             box_dim.append(self._u.dimensions)
     
         return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos1_traj,ocpos2_traj,box_dim)
-    
-    
-    def carbon(self):
-        '''Load trajectory for the carbon species.
-        Returns arrays of C and OC positions for each frame '''
-        cpos_traj = []
-        ocpos_traj = []
-        for ts in self._u.trajectory[:self._end]:
-            cpos = self._u.select_atoms('name C').positions
-            ocpos = self._u.select_atoms('name OC').positions
-            cpos_traj.append(cpos)  
-            ocpos_traj.append(ocpos)
-    
-        return (cpos_traj,ocpos_traj)
-    
-    
-    def conclude(self):
-        ag = self._u.atoms
-        transform = unwrap(ag)
-        self._u.trajectory.add_transformations(transform)
 
