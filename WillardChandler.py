@@ -22,9 +22,10 @@ class WillardChandler:
     '''Module for generating a Willard-Chandler interface and using this
     interface to calculate properties such as density and orientation.'''
 
-    def __init__(self, universe, upper_z, endstep=None):    
+    def __init__(self, universe, lower_z, upper_z, endstep=None):    
         self._u = universe
         self._end = endstep
+        self._lz = lower_z
         self._uz = upper_z
 
     def generate(self,grid=400,new_inter=True):
@@ -42,7 +43,7 @@ class WillardChandler:
         opos_traj = self._opos # wrapped oxygen coordinates to form the main coords to generatin the interface. 
 
         # create interface object
-        inter = WC_Interface(self._u,grid,self._uz)
+        inter = WC_Interface(self._u,grid,self._lz,self._uz)
 
         if new_inter==True: # generate new interfacial surface
 

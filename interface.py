@@ -16,10 +16,11 @@ class WC_Interface:
     '''Module for generating a Willard-Chandler interface and using this
     interface to calculate properties such as density and orientation.'''
 
-    def __init__(self, universe, grid_spacing=100, upper_z=30, **kwargs):
+    def __init__(self, universe, grid_spacing=100, lower_z=10, upper_z=30, **kwargs):
         
         self._u = universe          # load universe
         self._gs = grid_spacing     # load the grid spacing along z
+        self._lz = lower_z          # load the lower bounds for interface detection. 
         self._uz = upper_z          # load the upper bounds for interface detection.
     
 
@@ -45,7 +46,7 @@ class WC_Interface:
         grid = []
         for i in np.linspace(0,self._u.dimensions[0],int(self._u.dimensions[0])):
             for j in np.linspace(0,self._u.dimensions[1],int(self._u.dimensions[1])):
-                for k in np.linspace(5,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
+                for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
                     grid.append([i,j,k])
 
         grid = np.array(grid)
