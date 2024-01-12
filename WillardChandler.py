@@ -11,6 +11,7 @@ from orientation import Orientation
 from orientation import oriPlot
 from hbondz import Hbondz
 from hbondz import hbondPlot
+from itim import ITIM
 
 import multiprocessing
 from joblib import Parallel, delayed
@@ -22,8 +23,9 @@ class WillardChandler:
     '''Module for generating a Willard-Chandler interface and using this
     interface to calculate properties such as density and orientation.'''
 
-    def __init__(self, universe, lower_z, upper_z, endstep=None):    
+    def __init__(self, universe, lower_z, upper_z, startstep=None,endstep=None):    
         self._u = universe
+        self._start = startstep
         self._end = endstep
         self._lz = lower_z
         self._uz = upper_z
@@ -38,7 +40,7 @@ class WillardChandler:
         print()
 
         # create position object and extract positions (unwrapped)
-        pos = AtomPos(self._u,self._end)
+        pos = AtomPos(self._u,self._start,self._end)
         self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
         opos_traj = self._opos # wrapped oxygen coordinates to form the main coords to generatin the interface. 
 
@@ -226,3 +228,20 @@ class WillardChandler:
     def HBondz_plot(self):
         hbondPlot(self._don,self._donx,self._acc,self._accx,self._hbond_lower,self._hbond_upper)
         
+
+    # cluster analysis 
+
+    def Clusters(self):
+
+        itim = ITIM(self._u,self._start,self._end)
+        inter_o,inter_h1,inter_h2 = itim.prepare()
+
+        num_cores = multiprocessing.cpu_count()
+        result = Parallel(n_jobs=num_cores)(delayed(itim.cluster_analysis)(inter_o[i],inter_h1[i],inter_h2[i],self._cpos[i],self._ocpos1,self._ocpos2,self._boxdim[i]) for i in tqdm(range(len(inter_o))))
+
+        result,edges = np.histogram(result,bins=250)
+        edges = 0.5 * (edges[1:] + edges[:-1])
+        
+        hist = np.array([edges,result])
+        hist = hist.transpose()
+        return (hist)

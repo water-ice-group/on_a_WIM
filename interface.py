@@ -9,6 +9,7 @@ from MDAnalysis.analysis.distances import distance_array
 from utilities import AtomPos
 from scipy import interpolate
 import MDAnalysis as mda
+from MDAnalysis.lib import distances
 
 
 class WC_Interface:
@@ -59,7 +60,8 @@ class WC_Interface:
 
         density_field = []
         array = np.array(manifold)
-        dist =  distance_array(array,opos,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
+        opos_wrap = distances.apply_PBC(opos,boxdim)
+        dist =  distance_array(array,opos_wrap,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
 
         dens_array = self.gaussian(dist) # return gaussian for each of the grid points (rows) calculated per atom (columns)
         density_field = np.sum(dens_array,axis=1) # sum the gaussians along the columns (atoms) for each row (grid point)

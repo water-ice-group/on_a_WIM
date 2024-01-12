@@ -31,7 +31,8 @@ class Density:
         for i in range(len(inp)):
             if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
                 pos.append(wrap[i]) # append the unwrapped coordinates?
-        pos = np.array(wrap)
+        #pos = np.array(wrap)
+        pos = np.array(pos)
 
 
         WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 

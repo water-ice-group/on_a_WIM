@@ -8,9 +8,10 @@ import os
 
 class AtomPos: 
     
-    def __init__(self,universe,end_step=None):
+    def __init__(self,universe,start_step=None,end_step=None):
         
         self._u = universe
+        self._start = start_step if start_step is not None else (0)
         self._end = end_step if end_step is not None else (len(self._u.trajectory)-1)
         
         
@@ -40,11 +41,11 @@ class AtomPos:
         ocpos2_traj = []
         box_dim = []
 
-        length = len(self._u.trajectory[:self._end])
+        length = len(self._u.trajectory[self._start:self._end])
         print('Parsing through frames.')
         print(f'Total: {length}.')
 
-        for ts in self._u.trajectory[:self._end]:
+        for ts in self._u.trajectory[self._start:self._end]:
             oh_dist = distance_array(self._u.select_atoms('name' + ' OW').positions, # distance array loaded from module
                                     self._u.select_atoms('name' + ' H').positions, 
                                     box=self._u.dimensions)
