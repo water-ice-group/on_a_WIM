@@ -14,7 +14,7 @@ class Orientation:
                  **kwargs):
         self._u = universe
     
-    def _getCosTheta(self,ox,h1,h2,wc,upper_z,boxdim):
+    def _getCosTheta(self,ox,h1,h2,wc,upper_z,boxdim,vector):
 
         center = boxdim[:3]/2
         vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
@@ -25,7 +25,10 @@ class Orientation:
         dens = Density(self._u)
         dist,surf_vect = dens.proximity(wc,ox,boxdim,upper=upper_z,result='both')
 
-        cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        if vector=='WC':
+            cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        elif vector=='z':
+            cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
         
         return (np.array(dist),np.array(cosTheta))
     

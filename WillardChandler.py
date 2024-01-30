@@ -141,7 +141,7 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Orientation
-    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10):
+    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='WC'):
         '''Obtain the orientation of the species relative to the WC interface.'''
         
         ori = Orientation(self._u)  
