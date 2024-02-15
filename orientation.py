@@ -28,7 +28,7 @@ class Orientation:
         if vector=='WC':
             cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
         elif vector=='z':
-            cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
+            cosTheta = [np.dot(unitvect[i],[0,0,-1]) for i in range(len(dist))]
         
         return (np.array(dist),np.array(cosTheta))
     
@@ -44,7 +44,8 @@ class Orientation:
         dens = Density(self._u)
         dist,surf_vect = dens.proximity(wc,c,boxdim,upper=upper_z,result='both')
 
-        cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        #cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+	cosTheta = [np.dot(unitvect[i],[0,0,-1]) for i in range(len(dist))]
 
         return (np.array(dist),np.array(cosTheta))
 
