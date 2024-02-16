@@ -20,8 +20,20 @@ from tqdm import tqdm
 
 class WillardChandler:
     
-    '''Module for generating a Willard-Chandler interface and using this
-    interface to calculate properties such as density and orientation.'''
+    """Module for calculating the WC interface and computing properties relative to interface.
+
+    Args:
+        universe (obj):         Load MDAnalysis universe for system. 
+        lower_z (float):        Upper bound for histogram range.
+        upper_z (float):        Upper bound for histogram range.
+        startstep (int):        Number of bins for histogram.
+        endstep (int):          Lower bound for histogram range.
+    
+    Returns:
+        tuple: Tuple containing density histogram and corresponding bin edges.
+
+    Raises:
+        ValueError: If the specified atom type is not supported."""
 
     def __init__(self, universe, lower_z, upper_z, startstep=None,endstep=None):    
         self._u = universe
@@ -29,6 +41,8 @@ class WillardChandler:
         self._end = endstep
         self._lz = lower_z
         self._uz = upper_z
+
+
 
     def generate(self,grid=400,new_inter=True):
         '''Generate the WC interface.'''
@@ -95,14 +109,13 @@ class WillardChandler:
     def Density_run(self,atom_type,bins=400,lower=-10,upper=10):
 
 
-        
         """Computes the density of molecules relative to the water-carbon interface.
 
         Args:
-            atom_type (str): Type of molecule ('OW' for water oxygen or 'C' for carbon).
-            bins (int): Number of bins for histogram.
-            lower (float): Lower bound for histogram range.
-            upper (float): Upper bound for histogram range.
+            atom_type (str):        Type of molecule ('OW' for water oxygen or 'C' for carbon).
+            bins (int):             Number of bins for histogram.
+            lower (float):          Lower bound for histogram range.
+            upper (float):          Upper bound for histogram range.
         
         Returns:
             tuple: Tuple containing density histogram and corresponding bin edges.
@@ -127,7 +140,7 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz) for i in tqdm(range(len(traj)))) # parse through frames
+        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj)))) # parse through frames
         self._dens_result = result
         print('Generating histogram(s)')
 
@@ -164,12 +177,12 @@ class WillardChandler:
         """Computes orientations of near-interface molecules based on specified atom type and histogram type.
 
         Args:
-            atomtype (str): Type of atom ('water' or 'carbon').
-            histtype (str): Type of histogram ('time' or 'heatmap').
-            lower (float): Lower bound for histogram range.
-            upper (float): Upper bound for histogram range.
-            bins (int): Number of bins for histogram.
-            vect (str): Vector with which to compute orientation ('z' axis or 'WC' vector).
+            atomtype (str):         Type of atom ('water' or 'carbon').
+            histtype (str):         Type of histogram ('time' or 'heatmap').
+            lower (float):          Lower bound for histogram range.
+            upper (float):          Upper bound for histogram range.
+            bins (int):             Number of bins for histogram.
+            vect (str):             Vector with which to compute orientation ('z' axis or 'WC' vector).
         
         Returns:
             ndarray or tuple: Depending on the histtype, returns either the orientation histogram (time) or tuple containing X, Y, and the heatmap histogram (heatmap).
@@ -189,12 +202,12 @@ class WillardChandler:
         print('Calculating orientation profile ...')
 
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._uz,self._boxdim[i],vect) for i in tqdm(range(len(self._opos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i],vect) for i in tqdm(range(len(self._opos))))
             if vect == 'WC':
                 lower = lower
                 upper = 0
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._uz,self._boxdim[i],vect) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],vect) for i in tqdm(range(len(self._cpos))))
             if vect == 'WC':
                 lower = 0
                 upper = upper
