@@ -93,12 +93,29 @@ class WillardChandler:
         
     # Density
     def Density_run(self,atom_type,bins=400,lower=-10,upper=10):
-        '''Obtain the density of species relative to the WC interface.'''
 
+
+        
+        """Computes the density of molecules relative to the water-carbon interface.
+
+        Args:
+            atom_type (str): Type of molecule ('OW' for water oxygen or 'C' for carbon).
+            bins (int): Number of bins for histogram.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+        
+        Returns:
+            tuple: Tuple containing density histogram and corresponding bin edges.
+
+        Raises:
+            ValueError: If the specified atom type is not supported."""
+        
+
+
+        dens = Density(self._u)
         self._dens_lower = lower
         self._dens_upper = upper
 
-        dens = Density(self._u)
     
         if atom_type == 'OW':
             traj = self._opos
@@ -141,9 +158,26 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Orientation
-    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='WC'):
-        '''Obtain the orientation of the species relative to the WC interface.'''
+    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='z'):
+
+
+        """Computes orientations of near-interface molecules based on specified atom type and histogram type.
+
+        Args:
+            atomtype (str): Type of atom ('water' or 'carbon').
+            histtype (str): Type of histogram ('time' or 'heatmap').
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+            bins (int): Number of bins for histogram.
+            vect (str): Vector with which to compute orientation ('z' axis or 'WC' vector).
         
+        Returns:
+            ndarray or tuple: Depending on the histtype, returns either the orientation histogram (time) or tuple containing X, Y, and the heatmap histogram (heatmap).
+
+        Raises:
+            ValueError: If the specified atom type is not supported."""
+        
+
         ori = Orientation(self._u)  
         self._ori_lower = lower
         self._ori_upper = upper      
@@ -155,21 +189,34 @@ class WillardChandler:
         print('Calculating orientation profile ...')
 
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._uz,self._boxdim[i]) for i in tqdm(range(len(self._opos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._uz,self._boxdim[i],vect) for i in tqdm(range(len(self._opos))))
+            if vect == 'WC':
+                lower = lower
+                upper = 0
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._uz,self._boxdim[i]) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._uz,self._boxdim[i],vect) for i in tqdm(range(len(self._cpos))))
+            if vect == 'WC':
+                lower = 0
+                upper = upper
         else:
             print('Specify atom type.')
-
-
+    
         dist = [i[0] for i in result]
         theta = [i[1] for i in result]
         
         print('Generating histogram(s)')
 
+        print(len(dist))
+        print(len(theta))
         dist_array = np.concatenate(dist).ravel()
         Theta_array = np.concatenate(theta).ravel()
+
+        print(len(dist_array))
+        print(len(Theta_array))
         
+
+
+
         if histtype=='time':
             result = ori._getHistogram(dist_array,
                                     Theta_array,
@@ -205,18 +252,29 @@ class WillardChandler:
 
     # Hydrogen bond counting
     def Hbonds_run(self,bins=75,lower=-15,upper=0):
-        '''Obtain the HBond profile mapping the average count with distance 
-        from the interface.'''
+
+
+        """Computes hydrogen bond profile mapping the average count with distance from the interface.
+
+        Args:
+            bins (int): Number of bins for histogram.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
         
+        Returns:
+            tuple: Tuple containing histograms of donor and acceptor hydrogen bonds along with their corresponding bin edges.
+
+        Raises:
+            None"""
+        
+
+        counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
         self._hbond_upper = upper
 
-        counter = Hbondz(self._u,self._uz)
-        
-
         print()
         print(f'Obtaining Hbonds.')
-        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._end,self._boxdim,bins)
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._start,self._end,self._boxdim,bins)
 
         self._don = hist_don
         self._donx = don_range

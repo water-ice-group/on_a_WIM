@@ -92,14 +92,18 @@ class Hbondz:
         return (time,donor,acceptor)
 
 
-    def hbond_analysis(self,wc,lower,upper,stop,boxdim,bins=250):
+    def hbond_analysis(self,wc,lower,upper,start,stop,boxdim,bins=250):
         hbonds = HydrogenBondAnalysis(universe=self._u,
                                       donors_sel='name OW OC',
                                       hydrogens_sel='name H',
                                       acceptors_sel='name OW OC',
                                       d_a_cutoff=3.5,
                                       d_h_a_angle_cutoff=140)
-        hbonds.run(stop=stop)
+        if start == None:
+            start = 0
+        if stop == None:
+            stop = int(len(self._u.trajectory)-1)
+        hbonds.run(start=start,stop=stop)
 
         # hbonds will return results of the following form
         # [frame, donor_ID, H_ID, acceptor_ID, bond_distance, angle]
@@ -111,13 +115,14 @@ class Hbondz:
         acc_id = output_arr[:,3]
         counts = hbonds.times
 
-        print(counts[0])
+        print(start)
+        print(stop)
 
         # create dictionary to store results
         steps = [i[0] for i in hbonds.results.hbonds] # will feature multiple occurences of the same step
-        tot_steps = int(max(steps))
+        tot_steps = int(stop - start)
         data = dict()
-        for i in range(tot_steps + 1):
+        for i in range(tot_steps):
             data[int(i)] = [[],[]]
         self._data = data
 

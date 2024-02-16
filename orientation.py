@@ -14,13 +14,28 @@ class Orientation:
                  **kwargs):
         self._u = universe
     
-    def _getCosTheta(self,ox,h1,h2,wc,upper_z,boxdim,vector):
+    def _getCosTheta(self,ox,h1,h2,wc,boxdim,vector):
 
         center = boxdim[:3]/2
         vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
         vect2 = distances.apply_PBC(h2-ox+center,box=boxdim)
         dipVector0 = (vect1 + vect2) * 0.5 - center
-        unitvect = ( dipVector0 / np.linalg.norm(dipVector0, axis=1)[:, None] )
+
+        dens = Density(self._u)
+        dist,surf_vect = dens.proximity(wc,ox,boxdim,result='both',cutoff=False)
+
+        if vector=='z':
+            cosTheta = [np.dot(dipVector0[i],[0,0,1]) for i in range(len(dist))]
+        elif vector=='WC':
+            cosTheta = [np.dot(dipVector0[i],surf_vect[i])/abs(dist[i]) for i in range(len(dist))]
+
+        return (dist,cosTheta)
+
+        # redacted feature
+        '''elif property=='bond':
+            #vect1 = distances.apply_PBC(h1-ox,box=boxdim)
+            vect1 = np.subtract(h1,ox)
+            unitvect = ( vect1 / np.linalg.norm(vect1, axis=1)[:, None] )
 
         dens = Density(self._u)
         dist,surf_vect = dens.proximity(wc,ox,boxdim,upper=upper_z,result='both')
@@ -30,24 +45,44 @@ class Orientation:
         elif vector=='z':
             cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
         
-        return (np.array(dist),np.array(cosTheta))
+        return (np.array(dist),np.array(cosTheta))'''
+        
     
-    def _getCosTheta_Carbon(self,c,oc1,oc2,wc,upper_z,boxdim):
+    def _getCosTheta_Carbon(self,oc1,oc2,wc,boxdim,vector):
 
         center = boxdim[:3]/2
-        vect1 = distances.apply_PBC(oc1-c,box=boxdim)
-        vect2 = distances.apply_PBC(oc2-c,box=boxdim) 
+        vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
+        vect2 = distances.apply_PBC(oc2-c+center,box=boxdim) 
         dipVector0 = (vect1 + vect2) * 0.5 - center # map the dipole
-        #dipVector0 = vect1 - center # map the bond angle
-        unitvect = ( dipVector0 / np.linalg.norm(dipVector0, axis=1)[:, None] )
 
         dens = Density(self._u)
-        dist,surf_vect = dens.proximity(wc,c,boxdim,upper=upper_z,result='both')
+        dist,surf_vect = dens.proximity(wc,c,boxdim,result='both',cutoff=False)
 
-        cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        if vector=='z':
+            cosTheta = [np.dot(dipVector0[i],[0,0,1]) for i in range(len(dist))]
+        elif vector=='WC':
+            cosTheta = [np.dot(dipVector0[i],surf_vect[i])/abs(dist[i]) for i in range(len(dist))]
 
-        return (np.array(dist),np.array(cosTheta))
+        return (dist,cosTheta)
 
+        # redacted feature
+        '''elif property=='bond':
+            center = boxdim[:3]/2
+            vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
+            vect2 = distances.apply_PBC(oc2-c+center,box=boxdim) 
+            #dipVector0 = (vect1 + vect2) * 0.5 - center # map the dipole
+            dipVector0 = vect1 - center # map the bond angle
+            unitvect = ( dipVector0/ np.linalg.norm(vect1, axis=1)[:, None] )
+
+            dens = Density(self._u)
+            dist,surf_vect = dens.proximity(wc,c,boxdim,upper=upper_z,result='both')
+
+            if vector=='WC':
+                cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+            elif vector=='z':
+                cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
+
+            return (np.array(dist),np.array(cosTheta))'''
 
     def _getHistogram(self, dist, cosThetra, bins=200,hist_range=[-20,10]):
 
