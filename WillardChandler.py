@@ -11,11 +11,12 @@ from orientation import Orientation
 from orientation import oriPlot
 from hbondz import Hbondz
 from hbondz import hbondPlot
-from itim import ITIM
+from itim import monolayer
 
 import multiprocessing
 from joblib import Parallel, delayed
 from tqdm import tqdm
+
 
 
 class WillardChandler:
@@ -231,17 +232,19 @@ class WillardChandler:
 
     # cluster analysis 
 
-    def Clusters(self):
+    def Clusters(self,atomtype='OW',unlike=True,bins=75):
 
-        itim = ITIM(self._u,self._start,self._end)
-        inter_o,inter_h1,inter_h2 = itim.prepare()
+        itim = monolayer(self._u,self._start,self._end)
+        result = itim.cluster_RDF(atomtype=atomtype, unlike=unlike,bins=bins)
 
-        num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores)(delayed(itim.cluster_analysis)(inter_o[i],inter_h1[i],inter_h2[i],self._cpos[i],self._ocpos1,self._ocpos2,self._boxdim[i]) for i in tqdm(range(len(inter_o))))
+        # #num_cores = multiprocessing.cpu_count()
+        # #result = Parallel(n_jobs=num_cores)(delayed(itim.cluster_analysis)(inter_o[i],inter_h1[i],inter_h2[i],self._cpos[i],self._ocpos1,self._ocpos2,self._boxdim[i]) for i in tqdm(range(len(inter_o))))
 
-        result,edges = np.histogram(result,bins=250)
-        edges = 0.5 * (edges[1:] + edges[:-1])
+        # result,edges = np.histogram(result,bins=250)
+        # edges = 0.5 * (edges[1:] + edges[:-1])
         
-        hist = np.array([edges,result])
-        hist = hist.transpose()
-        return (hist)
+        # hist = np.array([edges,result])
+        # hist = hist.transpose()
+
+
+        return result
