@@ -21,8 +21,20 @@ from tqdm import tqdm
 
 class WillardChandler:
     
-    '''Module for generating a Willard-Chandler interface and using this
-    interface to calculate properties such as density and orientation.'''
+    """Module for calculating the WC interface and computing properties relative to interface.
+
+    Args:
+        universe (obj):         Load MDAnalysis universe for system. 
+        lower_z (float):        Upper bound for histogram range.
+        upper_z (float):        Upper bound for histogram range.
+        startstep (int):        Number of bins for histogram.
+        endstep (int):          Lower bound for histogram range.
+    
+    Returns:
+        tuple: Tuple containing density histogram and corresponding bin edges.
+
+    Raises:
+        ValueError: If the specified atom type is not supported."""
 
     def __init__(self, universe, lower_z, upper_z, startstep=None,endstep=None):    
         self._u = universe
@@ -30,6 +42,8 @@ class WillardChandler:
         self._end = endstep
         self._lz = lower_z
         self._uz = upper_z
+
+
 
     def generate(self,grid=400,new_inter=True):
         '''Generate the WC interface.'''
@@ -94,12 +108,28 @@ class WillardChandler:
         
     # Density
     def Density_run(self,atom_type,bins=400,lower=-10,upper=10):
-        '''Obtain the density of species relative to the WC interface.'''
 
+
+        """Computes the density of molecules relative to the water-carbon interface.
+
+        Args:
+            atom_type (str):        Type of molecule ('OW' for water oxygen or 'C' for carbon).
+            bins (int):             Number of bins for histogram.
+            lower (float):          Lower bound for histogram range.
+            upper (float):          Upper bound for histogram range.
+        
+        Returns:
+            tuple: Tuple containing density histogram and corresponding bin edges.
+
+        Raises:
+            ValueError: If the specified atom type is not supported."""
+        
+
+
+        dens = Density(self._u)
         self._dens_lower = lower
         self._dens_upper = upper
 
-        dens = Density(self._u)
     
         if atom_type == 'OW':
             traj = self._opos
@@ -111,7 +141,7 @@ class WillardChandler:
 
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz) for i in tqdm(range(len(traj)))) # parse through frames
+        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj)))) # parse through frames
         self._dens_result = result
         print('Generating histogram(s)')
 
@@ -142,9 +172,26 @@ class WillardChandler:
     # ------------------------------------------------------------------------
 
     # Orientation
-    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10):
-        '''Obtain the orientation of the species relative to the WC interface.'''
+    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='z'):
+
+
+        """Computes orientations of near-interface molecules based on specified atom type and histogram type.
+
+        Args:
+            atomtype (str):         Type of atom ('water' or 'carbon').
+            histtype (str):         Type of histogram ('time' or 'heatmap').
+            lower (float):          Lower bound for histogram range.
+            upper (float):          Upper bound for histogram range.
+            bins (int):             Number of bins for histogram.
+            vect (str):             Vector with which to compute orientation ('z' axis or 'WC' vector).
         
+        Returns:
+            ndarray or tuple: Depending on the histtype, returns either the orientation histogram (time) or tuple containing X, Y, and the heatmap histogram (heatmap).
+
+        Raises:
+            ValueError: If the specified atom type is not supported."""
+        
+
         ori = Orientation(self._u)  
         self._ori_lower = lower
         self._ori_upper = upper      
@@ -156,21 +203,34 @@ class WillardChandler:
         print('Calculating orientation profile ...')
 
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._uz,self._boxdim[i]) for i in tqdm(range(len(self._opos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i],vect) for i in tqdm(range(len(self._opos))))
+            if vect == 'WC':
+                lower = lower
+                upper = 0
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._uz,self._boxdim[i]) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],vect) for i in tqdm(range(len(self._cpos))))
+            if vect == 'WC':
+                lower = 0
+                upper = upper
         else:
             print('Specify atom type.')
-
-
+    
         dist = [i[0] for i in result]
         theta = [i[1] for i in result]
         
         print('Generating histogram(s)')
 
+        print(len(dist))
+        print(len(theta))
         dist_array = np.concatenate(dist).ravel()
         Theta_array = np.concatenate(theta).ravel()
+
+        print(len(dist_array))
+        print(len(Theta_array))
         
+
+
+
         if histtype=='time':
             result = ori._getHistogram(dist_array,
                                     Theta_array,
@@ -206,18 +266,29 @@ class WillardChandler:
 
     # Hydrogen bond counting
     def Hbonds_run(self,bins=75,lower=-15,upper=0):
-        '''Obtain the HBond profile mapping the average count with distance 
-        from the interface.'''
+
+
+        """Computes hydrogen bond profile mapping the average count with distance from the interface.
+
+        Args:
+            bins (int): Number of bins for histogram.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
         
+        Returns:
+            tuple: Tuple containing histograms of donor and acceptor hydrogen bonds along with their corresponding bin edges.
+
+        Raises:
+            None"""
+        
+
+        counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
         self._hbond_upper = upper
 
-        counter = Hbondz(self._u,self._uz)
-        
-
         print()
         print(f'Obtaining Hbonds.')
-        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._end,self._boxdim,bins)
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._start,self._end,self._boxdim,bins)
 
         self._don = hist_don
         self._donx = don_range
@@ -232,19 +303,9 @@ class WillardChandler:
 
     # cluster analysis 
 
-    def Clusters(self,atomtype='OW',unlike=True,bins=75):
+    def Clusters(self,atomtype_1='OW',atomtype_2='C',layer=1,bins=75,range=(0,10)):
 
         itim = monolayer(self._u,self._start,self._end)
-        result = itim.cluster_RDF(atomtype=atomtype, unlike=unlike,bins=bins)
-
-        # #num_cores = multiprocessing.cpu_count()
-        # #result = Parallel(n_jobs=num_cores)(delayed(itim.cluster_analysis)(inter_o[i],inter_h1[i],inter_h2[i],self._cpos[i],self._ocpos1,self._ocpos2,self._boxdim[i]) for i in tqdm(range(len(inter_o))))
-
-        # result,edges = np.histogram(result,bins=250)
-        # edges = 0.5 * (edges[1:] + edges[:-1])
-        
-        # hist = np.array([edges,result])
-        # hist = hist.transpose()
-
+        result = itim.cluster_RDF(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins,range=range)
 
         return result

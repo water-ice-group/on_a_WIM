@@ -20,7 +20,7 @@ class Density:
         
     
 
-    def proximity(self,WC_inter,inp,boxdim,upper=25,result='mag'):
+    def proximity(self,WC_inter,inp,boxdim,upper=25,result='mag',cutoff=True):
         '''Obtain the proximities of each particular molecule to the WC interface.'''
         '''Input of a SINGLE FRAME into the function.'''
         
@@ -28,11 +28,14 @@ class Density:
         wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
         inp = np.array(inp)
         wrap = np.array(wrap)
-        for i in range(len(inp)):
-            if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
-                pos.append(wrap[i]) # append the unwrapped coordinates?
-        #pos = np.array(wrap)
-        pos = np.array(pos)
+        if cutoff==True:
+            for i in range(len(inp)):
+                if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
+                    pos.append(inp[i]) # append the unwrapped coordinates?
+            #pos = np.array(wrap)
+            pos = np.array(pos)
+        if cutoff==False:
+            pos = inp
 
 
         WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 

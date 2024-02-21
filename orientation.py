@@ -14,7 +14,7 @@ class Orientation:
                  **kwargs):
         self._u = universe
     
-    def _getCosTheta(self,ox,h1,h2,wc,upper_z,boxdim):
+    def _getCosTheta(self,ox,h1,h2,wc,boxdim,vector):
 
         center = boxdim[:3]/2
         vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
@@ -23,28 +23,68 @@ class Orientation:
         unitvect = ( dipVector0 / np.linalg.norm(dipVector0, axis=1)[:, None] )
 
         dens = Density(self._u)
+        dist,surf_vect = dens.proximity(wc,ox,boxdim,result='both',cutoff=False)
+
+        if vector=='z':
+            cosTheta = [np.dot(dipVector0[i],[0,0,1])/np.linalg.norm(dipVector0[i]) for i in range(len(dist))]
+        elif vector=='WC':
+            cosTheta = [np.dot(dipVector0[i],surf_vect[i])/((np.linalg.norm(surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
+
+        return (dist,cosTheta)
+
+        # redacted feature
+        '''elif property=='bond':
+            #vect1 = distances.apply_PBC(h1-ox,box=boxdim)
+            vect1 = np.subtract(h1,ox)
+            unitvect = ( vect1 / np.linalg.norm(vect1, axis=1)[:, None] )
+
+        dens = Density(self._u)
         dist,surf_vect = dens.proximity(wc,ox,boxdim,upper=upper_z,result='both')
 
-        cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        if vector=='WC':
+            cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        elif vector=='z':
+            cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
         
-        return (np.array(dist),np.array(cosTheta))
+        return (np.array(dist),np.array(cosTheta))'''
+        
     
-    def _getCosTheta_Carbon(self,c,oc1,oc2,wc,upper_z,boxdim):
+    def _getCosTheta_Carbon(self,c,oc1,oc2,wc,boxdim,vector):
 
         center = boxdim[:3]/2
-        vect1 = distances.apply_PBC(oc1-c,box=boxdim)
-        vect2 = distances.apply_PBC(oc2-c,box=boxdim) 
+        vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
+        vect2 = distances.apply_PBC(oc2-c+center,box=boxdim) 
         dipVector0 = (vect1 + vect2) * 0.5 - center # map the dipole
-        #dipVector0 = vect1 - center # map the bond angle
         unitvect = ( dipVector0 / np.linalg.norm(dipVector0, axis=1)[:, None] )
 
         dens = Density(self._u)
-        dist,surf_vect = dens.proximity(wc,c,boxdim,upper=upper_z,result='both')
+        dist,surf_vect = dens.proximity(wc,c,boxdim,result='both',cutoff=False)
 
-        cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+        if vector=='z':
+            cosTheta = [np.dot(dipVector0[i],[0,0,1])/np.linalg.norm(dipVector0[i]) for i in range(len(dist))]
+        elif vector=='WC':
+            cosTheta = [np.dot(dipVector0[i],surf_vect[i])/((np.linalg.norm(surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
 
-        return (np.array(dist),np.array(cosTheta))
+        return (dist,cosTheta)
 
+        # redacted feature
+        '''elif property=='bond':
+            center = boxdim[:3]/2
+            vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
+            vect2 = distances.apply_PBC(oc2-c+center,box=boxdim) 
+            #dipVector0 = (vect1 + vect2) * 0.5 - center # map the dipole
+            dipVector0 = vect1 - center # map the bond angle
+            unitvect = ( dipVector0/ np.linalg.norm(vect1, axis=1)[:, None] )
+
+            dens = Density(self._u)
+            dist,surf_vect = dens.proximity(wc,c,boxdim,upper=upper_z,result='both')
+
+            if vector=='WC':
+                cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
+            elif vector=='z':
+                cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
+
+            return (np.array(dist),np.array(cosTheta))'''
 
     def _getHistogram(self, dist, cosThetra, bins=200,hist_range=[-20,10]):
 
@@ -80,7 +120,17 @@ class Orientation:
         return (hist,x_edges,y_edges)
     
 
+    def element_wise_dot_product(vectors1, vectors2, normal=False):
 
+        if normal==True:
+            new_list = [vectors2]*len(vectors1)
+            vectors2 = new_list
+
+        if len(vectors1) != len(vectors2):
+            raise ValueError("The lengths of input lists are not equal.")
+
+        dot_products = [sum(v1_i * v2_i for v1_i, v2_i in zip(vec1, vec2)) for vec1, vec2 in zip(vectors1, vectors2)]
+        return dot_products
     
 
 def oriPlot(data_Oxygen,data_Carbon,lower=-15,upper=15,smooth=2):

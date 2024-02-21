@@ -48,27 +48,28 @@ class monolayer:
     #     return (o_traj)
 
 
-    def cluster_RDF(self,atomtype,unlike,bins):
+    def cluster_RDF(self,atomtype_1,atomtype_2,layer,bins,range):
         '''Cluster analysis for a single frame.'''
 
 
-        u = self.locate(atomtype=atomtype)
-        inter_o = u.atoms[self._u.atoms.layers==1]
-        cpos = u.select_atoms('name C')
+        u = self.locate(atomtype=atomtype_1)
+        mol_1 = u.atoms[self._u.atoms.layers==layer]
+        mol_2 = u.select_atoms(f'name {atomtype_2}')
 
-        if unlike==True:
-            rdf = InterRDF(inter_o,cpos,nbins=bins,range=(0,10))
+        if atomtype_1==atomtype_2:
+            rdf = InterRDF(mol_1,mol_2,
+                           #exclusion_block=(0,0),
+                           nbins=bins,range=range)
             rdf.run()
 
             return (rdf.bins,rdf.rdf)
         
-        elif unlike==False:
-            rdf_o = InterRDF(inter_o,inter_o,exclusion_block=(1,1),nbins=bins,range=(0,10))
-            rdf_o.run()
-            rdf_c = InterRDF(cpos,cpos,exclusion_block=(1,1),nbins=bins,range=(0,10))
-            rdf_c.run()
+        else:
+            rdf = InterRDF(mol_1,mol_2,nbins=bins,range=range)
+            rdf.run()
 
-            return (rdf_o.bins,rdf_o.rdf,rdf_c.bins,rdf_c.rdf)
+            return (rdf.bins,rdf.rdf)
+
 
 
     # def cluster_RDF(self,inter_o,inter_h1,inter_h2,cpos,oc1_pos,oc2_pos,boxdim):
