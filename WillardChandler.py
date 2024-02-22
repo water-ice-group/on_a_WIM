@@ -12,6 +12,7 @@ from orientation import oriPlot
 from hbondz import Hbondz
 from hbondz import hbondPlot
 from itim import monolayer
+from itim import monolayer_angles
 
 import multiprocessing
 from joblib import Parallel, delayed
@@ -306,6 +307,36 @@ class WillardChandler:
     def Clusters(self,atomtype_1='OW',atomtype_2='C',layer=1,bins=75,range=(0,10)):
 
         itim = monolayer(self._u,self._start,self._end)
-        result = itim.cluster_RDF(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins,range=range)
+        #result = itim.cluster_RDF_basic(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins,range=range)
+        result = itim.cluster_RDF_pytim(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins)
 
         return result
+
+
+    def Cluster_properties(self,property='angle',bins=100):
+
+        itim = monolayer(self._u,self._start,self._end)
+        cluster_ori = monolayer_angles()
+
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+        
+        num_cores = int(multiprocessing.cpu_count()/2)
+        result = Parallel(n_jobs=num_cores)(delayed(cluster_ori.calc_angles)(inter_ox[i],inter_h1[i],inter_h2[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+        dist = [i[0] for i in result]
+        theta = [i[1] for i in result]
+
+
+        if property == 'angle':    
+            hist_input = np.concatenate(theta).ravel()
+            norm = True
+        elif property == 'distance':    
+            hist_input = np.concatenate(dist).ravel()
+            norm = True
+
+        density,x_range = np.histogram(hist_input,bins=bins,
+                                    density=norm)
+
+        save_dat = np.array([x_range[:-1],density])
+        save_dat = save_dat.transpose()
+        np.savetxt(f'./outputs/cluster_{property}.dat',save_dat)
+        return (density,x_range[:-1])
