@@ -12,7 +12,7 @@ from orientation import oriPlot
 from hbondz import Hbondz
 from hbondz import hbondPlot
 from itim import monolayer
-from itim import monolayer_angles
+from itim import monolayer_properties
 
 import multiprocessing
 from joblib import Parallel, delayed
@@ -102,9 +102,14 @@ class WillardChandler:
         return loaded_coords
         
         
+
+
+
+
+
         
     ##########################################################################
-    ############################# Measurements ###############################
+    ################################ Density #################################
     ##########################################################################
         
     # Density
@@ -165,14 +170,48 @@ class WillardChandler:
         print('Done')
         print()
         return (result_hist,x_range)
+    
+
+    def nrg_from_dens(self):
+        fin = np.loadtxt('./outputs/C_dens.dat')
+        dist = fin[:,0]
+        dens = fin[:,1]
+        
+        R = 8.3145
+        k = 1.380649e-23 
+        T = 300
+
+        const = np.sum(dens)
+        nrg = [-0.000239006*R*T*np.log(i/const) for i in dens]
+        min_val = min(nrg)
+        output = [i-min_val for i in nrg]
+
+        save_dat = np.array([dist,output])
+        save_dat = save_dat.transpose()
+        np.savetxt('./outputs/free_energy.dat',save_dat)
+
+        return (dist,output)
 
     
     def Density_plot(self,data_Oxygen,data_Carbon=None):
         dens_plot(data_Oxygen,data_Carbon,self._dens_lower,self._dens_upper)
 
-    # ------------------------------------------------------------------------
 
-    # Orientation
+
+
+
+
+
+
+
+
+    ##########################################################################
+    ############################## Orientation ###############################
+    ##########################################################################
+        
+
+    # orientation
+        
     def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='z'):
 
 
@@ -257,13 +296,19 @@ class WillardChandler:
             return (X,Y,H)
 
 
-
-    
-    
     def Orientation_plot(self,data_Oxygen,data_Carbon=None):
         oriPlot(data_Oxygen,data_Carbon,self._ori_lower,self._ori_upper)
 
-    # ------------------------------------------------------------------------
+
+
+
+
+
+
+    ##########################################################################
+    ################################ Hbonding ################################
+    ##########################################################################
+
 
     # Hydrogen bond counting
     def Hbonds_run(self,bins=75,lower=-15,upper=0):
@@ -302,35 +347,85 @@ class WillardChandler:
         hbondPlot(self._don,self._donx,self._acc,self._accx,self._hbond_lower,self._hbond_upper)
         
 
+
+
+
+
+
+    ##########################################################################
+    ################################ ITIM analysis ###########################
+    ##########################################################################
+
+    '''Perform this analysis last. Can induce some errors in the parallelisation
+    code of other functions when used.'''
+
+
     # cluster analysis 
 
     def Clusters(self,atomtype_1='OW',atomtype_2='C',layer=1,bins=75,range=(0,10)):
 
         itim = monolayer(self._u,self._start,self._end)
-        #result = itim.cluster_RDF_basic(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins,range=range)
         result = itim.cluster_RDF_pytim(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins)
 
         return result
 
+    def Cluster_distances(self,property='dip_C',bins=100):
 
-    def Cluster_properties(self,property='angle',bins=100):
+        '''Identify distances of closest approach between 
+        two sets of molecules.'''
 
         itim = monolayer(self._u,self._start,self._end)
-        cluster_ori = monolayer_angles()
+        cluster_prop= monolayer_properties(self._u)
 
         inter_ox,inter_h1,inter_h2 = itim.surf_positions()
         
-        num_cores = int(multiprocessing.cpu_count()/2)
-        result = Parallel(n_jobs=num_cores)(delayed(cluster_ori.calc_angles)(inter_ox[i],inter_h1[i],inter_h2[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-        dist = [i[0] for i in result]
-        theta = [i[1] for i in result]
+        if property=='dip_C':
+            num_cores = int(multiprocessing.cpu_count())
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_dip_C_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+            dist = [i[0] for i in result]
+            hist_input = np.concatenate(dist).ravel()
+            norm=True
+    
+        elif property=='OW_OC':
+            num_cores = int(multiprocessing.cpu_count())
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.OW_OC_dist)(inter_ox[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+            dist = result
+            hist_input = np.concatenate(dist).ravel()
+            norm=True
+
+        density,x_range = np.histogram(hist_input,bins=bins,
+                                    density=norm)
+
+        save_dat = np.array([x_range[:-1],density])
+        save_dat = save_dat.transpose()
+        np.savetxt(f'./outputs/cluster_{property}_distance.dat',save_dat)
+        return (density,x_range[:-1])
 
 
-        if property == 'angle':    
+    def Cluster_orientations(self,property='water_dipole',bins=100):
+
+        '''Calculate angles of interest pertaining to interfacial
+        water molecules.'''
+
+        itim = monolayer(self._u,self._start,self._end)
+        cluster_prop = monolayer_properties(self._u)
+
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+
+        if property=='water_dipole':
+            dens = Density(self._u)
+            num_cores = int(multiprocessing.cpu_count())
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_h2o_dipole_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+            
+            theta = [i[1] for i in result]  
             hist_input = np.concatenate(theta).ravel()
             norm = True
-        elif property == 'distance':    
-            hist_input = np.concatenate(dist).ravel()
+        
+        elif property=='dip_C':
+            num_cores = int(multiprocessing.cpu_count())
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_dip_C_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+            theta = [i[1] for i in result]  
+            hist_input = np.concatenate(theta).ravel()
             norm = True
 
         density,x_range = np.histogram(hist_input,bins=bins,
@@ -338,5 +433,5 @@ class WillardChandler:
 
         save_dat = np.array([x_range[:-1],density])
         save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/cluster_{property}.dat',save_dat)
+        np.savetxt(f'./outputs/cluster_{property}_angle.dat',save_dat)
         return (density,x_range[:-1])

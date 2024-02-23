@@ -48,9 +48,10 @@ class Density:
         mag = []
         vect_list = []
         for i in range(len(pos)):
-            z_unit  = [0,0,-1]
+            z_unit  = [0,0,1]
             #vect = distances.apply_PBC(pos[i] - WC_spline[loc[i]],boxdim)
-            vect = pos[i] - WC_spline[loc[i]]
+            #vect = pos[i] - WC_spline[loc[i]]
+            vect = WC_spline[loc[i]] - pos[i] # AMENDED - CHECK THIS
             scal_proj = np.dot(vect,z_unit)
             mag.append(scal_proj)
             vect_list.append(vect)
