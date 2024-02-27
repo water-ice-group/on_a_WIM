@@ -1,6 +1,7 @@
 import numpy as np
 import MDAnalysis as mda
 from MDAnalysis.analysis.distances import distance_array
+from MDAnalysis.analysis.distances import self_distance_array
 from MDAnalysis.lib import distances
 from MDAnalysis.analysis.rdf import InterRDF
 import matplotlib.pyplot as plt
@@ -162,21 +163,7 @@ class monolayer_properties:
         theta = self.calc_angles(dipVector,surf_vect)
 
         return (dist,theta)
-    
-    
-    # def calc_COC_WC_angle(self,ox,h1,h2,wc,boxdim):
 
-    #     '''Calculate the angle between one C-OC bond of CO2 and the vector from 
-    #     the instantaneous interface.'''
-
-    #     dipVector = self.get_dipoles(ox,h1,h2,boxdim)
-        
-    #     dens = Density(self._u)
-    #     dist,surf_vect = dens.proximity(wc,ox,boxdim,result='both',cutoff=False)
-
-    #     theta = self.calc_angles(dipVector,surf_vect)
-
-    #     return (dist,theta)
 
 
     def calc_dip_C_angle(self,ox,h1,h2,cpos,boxdim):
@@ -210,6 +197,34 @@ class monolayer_properties:
         return interm_dist
 
     
+
+
+    #####################################################################################################
+    
+    '''Isolating interfacial CO2 more difficult. Following section looks to calculate RDFs.'''
+
+    def extract_atoms(distance_matrix, threshold):
+        within_threshold_mask = distance_matrix <= threshold
+        within_threshold_rows = np.any(within_threshold_mask, axis=1)
+        atoms_within_distance = np.where(within_threshold_rows)[0]
+        
+        return atoms_within_distance
+
+
+    def co2_surf_dist(self,wc_inter,cpos,boxdim):
+
+        '''Identify CO2s residing at the water surface using proximity to the instantaneous interface.'''
+
+        dist_mat = distance_array(cpos,wc_inter,box=boxdim)
+        loc = self.extract_atoms(dist_mat,6)
+
+        co2_surf = [cpos[i] for i in loc]
+        co2_surf = np.array(co2_surf)
+        co2_dist = self_distance_array(co2_surf,box=boxdim)
+
+        return co2_dist
+
+
 
 
 
