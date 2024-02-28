@@ -443,7 +443,7 @@ class WillardChandler:
         np.savetxt(f'./outputs/cluster_{property}_angle.dat',save_dat)
         return (density,x_range[:-1])
     
-    def surf_co2(self,cutoff=6,bins=100,norm=True):
+    def surf_co2(self,cutoff=4,bins=100,norm=True):
 
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
@@ -453,7 +453,9 @@ class WillardChandler:
         hist_input = np.concatenate(result).ravel()
 
         density,x_range = np.histogram(hist_input,bins=bins,
-                            density=norm,range=(1,cutoff))
+                            density=norm,range=(1,10))
+        
+        density = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
         
         save_dat = np.array([x_range[:-1],density])
         save_dat = save_dat.transpose()
