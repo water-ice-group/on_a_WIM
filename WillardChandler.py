@@ -394,7 +394,7 @@ class WillardChandler:
             norm=True
 
         density,x_range = np.histogram(hist_input,bins=bins,
-                                    density=norm)
+                                    density=norm,range=(1,8))
 
         save_dat = np.array([x_range[:-1],density])
         save_dat = save_dat.transpose()
@@ -428,8 +428,17 @@ class WillardChandler:
             hist_input = np.concatenate(theta).ravel()
             norm = True
 
+        elif property=='OW_OC':
+            dens = Density(self._u)
+            num_cores = int(multiprocessing.cpu_count())
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.OW_OC_angle)(inter_ox[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+
+            theta = [i[1] for i in result]
+            hist_input = np.concatenate(theta).ravel()
+            norm = True
+
         density,x_range = np.histogram(hist_input,bins=bins,
-                                    density=norm)
+                                    density=norm,range=(0,180))
 
         save_dat = np.array([x_range[:-1],density])
         save_dat = save_dat.transpose()
@@ -447,7 +456,7 @@ class WillardChandler:
         hist_input = np.concatenate(result).ravel()
 
         density,x_range = np.histogram(hist_input,bins=bins,
-                            density=norm)
+                            density=norm,range=(1,cutoff))
         
         save_dat = np.array([x_range[:-1],density])
         save_dat = save_dat.transpose()

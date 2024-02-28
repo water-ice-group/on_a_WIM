@@ -196,6 +196,26 @@ class monolayer_properties:
 
         return interm_dist
 
+    def OW_OC_angle(self,ox,ocpos1,ocpos2,wc,boxdim):
+
+        '''Combine the co2 oxygens at each frame. Plug into function to extract distances.
+        OW-OC distance important in gauging the number of hydrogen bonds at an interface.'''
+
+        ocpos_comb = []
+        for i in range(len(ocpos1)):
+            ocpos_comb.append(ocpos1[i])
+            ocpos_comb.append(ocpos2[i])
+
+        ocpos_comb = np.array(ocpos_comb)
+
+        interm_dist,interm_vect = self.get_closest_vect(ox,ocpos_comb,boxdim)
+        dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
+
+        theta = self.calc_angles(interm_vect,surf_vect)
+
+        return interm_dist
+
+
     
 
     #####################################################################################################
@@ -226,7 +246,8 @@ class monolayer_properties:
             co2_dist = self_distance_array(co2_surf,box=boxdim)
             return co2_dist
         except:
-            result = None
+            result = [0,0]
+            return result
             # do nothin
 
 
