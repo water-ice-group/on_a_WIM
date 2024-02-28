@@ -450,7 +450,6 @@ class WillardChandler:
 
         num_cores = int(multiprocessing.cpu_count())
         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
-        print(result[-1])
         hist_input = np.concatenate(result).ravel()
 
         density,x_range = np.histogram(hist_input,bins=bins,
