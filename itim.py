@@ -212,8 +212,9 @@ class monolayer_properties:
         dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
 
         theta = self.calc_angles(interm_vect,surf_vect)
+        print(len(theta))
 
-        return interm_dist
+        return theta
 
 
     
