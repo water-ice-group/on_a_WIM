@@ -198,12 +198,11 @@ class monolayer_properties:
 
     
 
-
     #####################################################################################################
     
     '''Isolating interfacial CO2 more difficult. Following section looks to calculate RDFs.'''
 
-    def extract_atoms(distance_matrix, threshold):
+    def extract_atoms(self,distance_matrix, threshold):
         within_threshold_mask = distance_matrix <= threshold
         within_threshold_rows = np.any(within_threshold_mask, axis=1)
         atoms_within_distance = np.where(within_threshold_rows)[0]
@@ -211,12 +210,12 @@ class monolayer_properties:
         return atoms_within_distance
 
 
-    def co2_surf_dist(self,wc_inter,cpos,boxdim):
+    def co2_surf_dist(self,wc_inter,cpos,boxdim,cutoff):
 
         '''Identify CO2s residing at the water surface using proximity to the instantaneous interface.'''
 
         dist_mat = distance_array(cpos,wc_inter,box=boxdim)
-        loc = self.extract_atoms(dist_mat,6)
+        loc = self.extract_atoms(dist_mat,cutoff)
 
         co2_surf = [cpos[i] for i in loc]
         co2_surf = np.array(co2_surf)

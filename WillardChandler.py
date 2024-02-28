@@ -436,13 +436,13 @@ class WillardChandler:
         np.savetxt(f'./outputs/cluster_{property}_angle.dat',save_dat)
         return (density,x_range[:-1])
     
-    def surf_co2(self,bins=100,norm=True):
+    def surf_co2(self,cutoff=6,bins=100,norm=True):
 
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
         num_cores = int(multiprocessing.cpu_count())
-        result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos,self._boxdim[i]) for i in tqdm(range(len(self._cpos))))
+        result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
         hist_input = np.concatenate(result).ravel()
 
         density,x_range = np.histogram(hist_input,bins=bins,
