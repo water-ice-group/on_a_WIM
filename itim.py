@@ -222,9 +222,11 @@ class monolayer_properties:
         #print(len(co2_surf))
         #for i in range(len(co2_surf)):
         #    print(co2_surf[i][2])
-        co2_dist = self_distance_array(co2_surf,box=boxdim)
-        
-        return co2_dist
+        try:
+            co2_dist = self_distance_array(co2_surf,box=boxdim)
+            return co2_dist
+        except:
+            # do nothing
 
 
 
