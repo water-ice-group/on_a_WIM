@@ -126,7 +126,7 @@ class monolayer_properties:
 
         return dipVector
     
-    def get_closest_vect(self,atomtype_1,atomtype_2,boxdim):
+    def get_closest_vect(self,atomtype_1,atomtype_2,boxdim,locr=False):
 
         '''Input single frame. Determine vector connecting water to closest carbon.'''
 
@@ -139,7 +139,10 @@ class monolayer_properties:
             vect = atomtype_2[loc[i]] - atomtype_1[i]
             vect_list.append(vect)
 
-        return (proxim,vect_list)
+        if locr == False:
+            return (proxim,vect_list)
+        elif locr == True:
+            return (proxim,loc)
 
 
     def calc_angles(self,vect1,vect2):
@@ -217,7 +220,57 @@ class monolayer_properties:
         return theta
 
 
+    #####################################################################################################
     
+    def hbond_properties(self,ox,h1,h2,ocpos1,ocpos2,boxdim):
+
+        ocpos_comb = []
+        for i in range(len(ocpos1)):
+            ocpos_comb.append(ocpos1[i])
+            ocpos_comb.append(ocpos2[i])
+        ocpos_comb = np.array(ocpos_comb)
+
+        interm_dist,loc = self.get_closest_vect(ox,ocpos_comb,boxdim,locr=True) # first value returned gives distances. 
+        #print(loc)
+        acc = [ocpos_comb[i] for i in loc]
+
+
+        h1_dist = distances.apply_PBC(h1-acc,boxdim)
+        h2_dist = distances.apply_PBC(h2-acc,boxdim)
+
+
+        angles = []
+        for i in range(len(ox)):
+
+            oxpos = ox[i]
+            hpos = [h1[i],h2[i]]
+            hpos = np.array(hpos)
+
+            dist_mat = distance_array(ocpos_comb[loc[i]],hpos)
+            proxim = np.min(dist_mat,axis=1)            
+            loc_h = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]
+
+            cent_atom = hpos[loc_h]
+
+            vect1 = oxpos - cent_atom
+            vect2 = ocpos_comb[loc[i]] - cent_atom
+            vect1 = vect1[0]
+            vect2 = vect2[0]
+
+            cosTheta = np.dot(vect1,vect2)/((np.linalg.norm(vect1))*np.linalg.norm(vect2))
+            theta = np.rad2deg(np.arccos(cosTheta))
+
+            angles.append(theta)
+
+        return (interm_dist,angles)
+
+
+
+
+
+
+
+
 
     #####################################################################################################
     

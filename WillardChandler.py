@@ -442,6 +442,42 @@ class WillardChandler:
         save_dat = save_dat.transpose()
         np.savetxt(f'./outputs/cluster_{property}_angle.dat',save_dat)
         return (density,x_range[:-1])
+
+
+    def Hbond_prop(self,bins=100):
+
+        itim = monolayer(self._u,self._start,self._end)
+        cluster_prop = monolayer_properties(self._u)
+
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+
+        # obtain distances and angles
+        num_cores = int(multiprocessing.cpu_count())
+        result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.hbond_properties)(inter_ox[i],inter_h1[i],inter_h2[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+        dist = [i[0] for i in result]
+        ang  = [i[1] for i in result]
+
+        # distance hist
+        hist_input = np.concatenate(dist).ravel()
+        norm=True
+        density_dist,x_range_dist = np.histogram(hist_input,bins=bins,
+                                    density=norm,range=(1,10))
+        save_dat = np.array([x_range_dist[:-1],density_dist])
+        save_dat = save_dat.transpose()
+        np.savetxt(f'./outputs/hbonding_dist_surf.dat',save_dat)
+        
+
+        # angle hist
+        hist_input = np.concatenate(ang).ravel()
+        norm=True
+        density_ang,x_range_ang = np.histogram(hist_input,bins=bins,
+                                    density=norm,range=(1,180))
+        save_dat = np.array([x_range_ang[:-1],density_ang])
+        save_dat = save_dat.transpose()
+        np.savetxt(f'./outputs/hbonding_ang_surf.dat',save_dat)
+
+        return ((density_dist,x_range_dist[:-1]),(density_ang,x_range_ang[:-1]))
+
     
     def surf_co2(self,cutoff=4,bins=100,norm=True):
 
