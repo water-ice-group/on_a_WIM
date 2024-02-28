@@ -226,7 +226,8 @@ class monolayer_properties:
             co2_dist = self_distance_array(co2_surf,box=boxdim)
             return co2_dist
         except:
-            # do nothing
+            result = None
+            # do nothin
 
 
 
