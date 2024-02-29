@@ -205,11 +205,11 @@ class monolayer_properties:
     def calc_OH_vect_angles(self,ox,h1,h2,wc,boxdim):
 
         vect1,vect2 = self.get_OH_vects(ox,h1,h2,boxdim)
-        dist,surf_vect_1 = Density(self._u).proximity(wc,h1,boxdim,result='both',cutoff=False)
-        dist,surf_vect_2 = Density(self._u).proximity(wc,h2,boxdim,result='both',cutoff=False)
+        dist,surf_vect_1 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
+        #dist,surf_vect_2 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
 
         theta_1 = self.calc_angles(vect1,surf_vect_1)
-        theta_2 = self.calc_angles(vect2,surf_vect_2)
+        theta_2 = self.calc_angles(vect2,surf_vect_1)
         output = np.concatenate((theta_1,theta_2))
 
         return output
