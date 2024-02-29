@@ -433,6 +433,9 @@ class WillardChandler:
         cluster_prop = monolayer_properties(self._u)
 
         inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
+        for i in inter_ox[-1]:
+            print(i[2])
+
 
         if property=='water_dipole':
             dens = Density(self._u)
