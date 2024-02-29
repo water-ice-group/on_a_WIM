@@ -374,7 +374,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
 
         num_cores = int(multiprocessing.cpu_count())
         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_OW_C_RDF)(inter_ox[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
@@ -432,7 +432,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
         for i in inter_ox[-1]:
             print(i[2])
 
@@ -468,7 +468,9 @@ class WillardChandler:
             norm = True
 
         density,x_range = np.histogram(hist_input,bins=bins,
-                                    density=norm,range=(0,180))
+                                    density=norm,
+                                    range=(0,180)
+                                    )
 
         save_dat = np.array([x_range[:-1],density])
         save_dat = save_dat.transpose()
@@ -481,7 +483,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
 
         # obtain distances and angles
         num_cores = int(multiprocessing.cpu_count())

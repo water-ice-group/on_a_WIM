@@ -104,9 +104,10 @@ class monolayer:
         return (opos_traj,h1_traj,h2_traj)
     
 
-    def surf_positions_single_interface(self):
+    def surf_positions_single_interface(self,boxdim):
 
         opos,h1_traj,h2_traj = self.surf_positions()
+        
 
         updated_opos = []
         updated_h1pos = []
@@ -116,11 +117,16 @@ class monolayer:
             frame_opos = []
             frame_h1pos = []
             frame_h2pos = []
-            for j in range(len(opos[i])):
-                if opos[i][j][2] < 30:
-                    frame_opos.append(opos[i][j])
-                    frame_h1pos.append(h1_traj[i][j])
-                    frame_h2pos.append(h2_traj[i][j])
+
+            opos_wrap = distances.apply_PBC(opos[i],boxdim[i])
+            h1pos_wrap = distances.apply_PBC(h1_traj[i],boxdim[i])
+            h2pos_wrap = distances.apply_PBC(h2_traj[i],boxdim[i])
+
+            for j in range(len(opos_wrap)):
+                if opos_wrap[j][2] < 30:
+                    frame_opos.append(opos_wrap[j])
+                    frame_h1pos.append(h1pos_wrap[j])
+                    frame_h2pos.append(h2pos_wrap[j])
             updated_opos.append(np.array(frame_opos))
             updated_h1pos.append(np.array(frame_h1pos))
             updated_h2pos.append(np.array(frame_h2pos))
@@ -183,6 +189,7 @@ class monolayer_properties:
 
         cosTheta = [np.dot(vect1[i],vect2[i])/((np.linalg.norm(vect1[i]))*np.linalg.norm(vect2[i])) for i in range(len(vect1))]
         theta = np.rad2deg(np.arccos(cosTheta))
+        #theta = cosTheta
         return theta
 
 
@@ -207,6 +214,8 @@ class monolayer_properties:
         vect1,vect2 = self.get_OH_vects(ox,h1,h2,boxdim)
         dist,surf_vect_1 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
         #dist,surf_vect_2 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
+
+        
 
         theta_1 = self.calc_angles(vect1,surf_vect_1)
         theta_2 = self.calc_angles(vect2,surf_vect_1)

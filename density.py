@@ -31,17 +31,17 @@ class Density:
         if cutoff==True:
             for i in range(len(inp)):
                 if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
-                    pos.append(inp[i]) # append the unwrapped coordinates?
+                    pos.append(wrap[i]) # append the unwrapped coordinates?
             #pos = np.array(wrap)
             pos = np.array(pos)
         if cutoff==False:
-            pos = inp
+            pos = wrap
 
 
         WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
         
         
-        dist_mat = distance_array(pos, WC_spline, box=self._u.dimensions) # should account for the wrapping. 
+        dist_mat = distance_array(pos, WC_spline, box=boxdim) # should account for the wrapping. 
         proxim = np.min(dist_mat,axis=1) # obtain min for each row/atom. 
         loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))] # obtain splined interface coordinate closest to the ox positions. 
         
