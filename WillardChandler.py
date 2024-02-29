@@ -374,7 +374,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
 
         num_cores = int(multiprocessing.cpu_count())
         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_OW_C_RDF)(inter_ox[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
@@ -399,7 +399,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop= monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
         
         if property=='dip_C':
             num_cores = int(multiprocessing.cpu_count())
@@ -432,7 +432,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
 
         if property=='water_dipole':
             dens = Density(self._u)
@@ -440,6 +440,13 @@ class WillardChandler:
             result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_h2o_dipole_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
             
             theta = [i[1] for i in result]  
+            hist_input = np.concatenate(theta).ravel()
+            norm = True
+
+        elif property=='OH_bonds':
+            num_cores = int(multiprocessing.cpu_count())
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_OH_vect_angles)(inter_ox[i],inter_h1[i],inter_h2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+            theta = result
             hist_input = np.concatenate(theta).ravel()
             norm = True
         
@@ -471,7 +478,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
 
         # obtain distances and angles
         num_cores = int(multiprocessing.cpu_count())

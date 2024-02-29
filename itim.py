@@ -104,6 +104,32 @@ class monolayer:
         return (opos_traj,h1_traj,h2_traj)
     
 
+    def surf_positions_single_interface(self):
+
+        opos,h1_traj,h2_traj = self.surf_positions()
+
+        updated_opos = []
+        updated_h1pos = []
+        updated_h2pos = []
+
+        for i in range(len(opos)):
+            frame_opos = []
+            frame_h1pos = []
+            frame_h2pos = []
+            for j in range(len(opos[i])):
+                if opos[i][j][2] < 30:
+                    frame_opos.append(opos[i][j])
+                    frame_h1pos.append(h1_traj[i][j])
+                    frame_h2pos.append(h2_traj[i][j])
+            updated_opos.append(np.array(frame_opos))
+            updated_h1pos.append(np.array(frame_h1pos))
+            updated_h2pos.append(np.array(frame_h2pos))
+        
+        return (updated_opos,updated_h1pos,updated_h2pos)
+
+
+    
+
 
     ############################################################################################
     ###################################  Properties  ###########################################
@@ -125,6 +151,14 @@ class monolayer_properties:
         dipVector = (vect1 + vect2) * 0.5 - center
 
         return dipVector
+    
+    def get_OH_vects(self,ox,h1,h2,boxdim):
+
+        '''Input single frame. Returns the dipole vector calculated for given water molecules.'''
+        vect1 = distances.apply_PBC(h1-ox,box=boxdim)
+        vect2 = distances.apply_PBC(h2-ox,box=boxdim)
+
+        return (vect1,vect2)
     
     def get_closest_vect(self,atomtype_1,atomtype_2,boxdim,locr=False):
 
@@ -166,6 +200,19 @@ class monolayer_properties:
         theta = self.calc_angles(dipVector,surf_vect)
 
         return (dist,theta)
+    
+
+    def calc_OH_vect_angles(self,ox,h1,h2,wc,boxdim):
+
+        vect1,vect2 = self.get_OH_vects(ox,h1,h2,boxdim)
+        dist,surf_vect_1 = Density(self._u).proximity(wc,h1,boxdim,result='both',cutoff=False)
+        dist,surf_vect_2 = Density(self._u).proximity(wc,h2,boxdim,result='both',cutoff=False)
+
+        theta_1 = self.calc_angles(vect1,surf_vect_1)
+        theta_2 = self.calc_angles(vect2,surf_vect_2)
+        output = np.concatenate((theta_1,theta_2))
+
+        return output
 
 
 
@@ -180,6 +227,7 @@ class monolayer_properties:
         theta = self.calc_angles(dipVector,interm_vect)
 
         return (interm_dist,theta)
+
 
     
     def calc_OW_C_RDF(self,inter_ox,cpos,boxdim):
@@ -243,11 +291,6 @@ class monolayer_properties:
 
         interm_dist,loc = self.get_closest_vect(ox,ocpos_comb,boxdim,locr=True) # first value returned gives distances. 
         #print(loc)
-        acc = [ocpos_comb[i] for i in loc]
-
-
-        h1_dist = distances.apply_PBC(h1-acc,boxdim)
-        h2_dist = distances.apply_PBC(h2-acc,boxdim)
 
 
         angles = []
@@ -263,8 +306,8 @@ class monolayer_properties:
 
             cent_atom = hpos[loc_h]
 
-            vect1 =  cent_atom - oxpos 
-            vect2 = ocpos_comb[loc[i]] - oxpos
+            vect1 =  oxpos - cent_atom 
+            vect2 = ocpos_comb[loc[i]] - cent_atom
             vect1 = vect1[0]
             vect2 = vect2[0]
 
