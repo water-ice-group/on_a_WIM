@@ -369,6 +369,28 @@ class WillardChandler:
 
         return result
 
+    def surface_rdf(self,bins):
+
+        itim = monolayer(self._u,self._start,self._end)
+        cluster_prop = monolayer_properties(self._u)
+
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions()
+
+        num_cores = int(multiprocessing.cpu_count())
+        result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_OW_C_RDF)(inter_ox[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
+        hist_input = np.concatenate(result).ravel()
+        norm=True
+
+        density,x_range = np.histogram(hist_input,bins=bins,
+                                    density=norm,range=(1,10))
+
+        density = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))]
+
+        save_dat = np.array([x_range[:-1],density])
+        save_dat = save_dat.transpose()
+        np.savetxt(f'./outputs/surf_RDF.dat',save_dat)
+        return (density,x_range[:-1])
+
     def Cluster_distances(self,property='dip_C',bins=100):
 
         '''Identify distances of closest approach between 

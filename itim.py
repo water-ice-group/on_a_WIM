@@ -180,6 +180,17 @@ class monolayer_properties:
         theta = self.calc_angles(dipVector,interm_vect)
 
         return (interm_dist,theta)
+
+    
+    def calc_OW_C_RDF(self,inter_ox,cpos,boxdim):
+
+        '''Calculate the angle between the water's dipole and the 
+        closest carbon.'''
+
+        dist_mat = distance_array(inter_ox,cpos,box=boxdim)
+        output = np.concatenate(dist_mat).ravel()
+        
+        return output
     
 
 
@@ -215,7 +226,7 @@ class monolayer_properties:
         dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
 
         theta = self.calc_angles(interm_vect,surf_vect)
-        print(len(theta))
+
 
         return theta
 
@@ -252,8 +263,8 @@ class monolayer_properties:
 
             cent_atom = hpos[loc_h]
 
-            vect1 = oxpos - cent_atom
-            vect2 = ocpos_comb[loc[i]] - cent_atom
+            vect1 =  cent_atom - oxpos 
+            vect2 = ocpos_comb[loc[i]] - oxpos
             vect1 = vect1[0]
             vect2 = vect2[0]
 
