@@ -399,7 +399,7 @@ class WillardChandler:
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop= monolayer_properties(self._u)
 
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface()
+        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
         
         if property=='dip_C':
             num_cores = int(multiprocessing.cpu_count())

@@ -176,7 +176,7 @@ class monolayer_properties:
 
         vect_list = []
         for i in range(len(atomtype_1)):
-            vect = atomtype_2[loc[i]] - atomtype_1[i]
+            vect = distances.apply_PBC(atomtype_2[loc[i]]-atomtype_1[i],boxdim)
             vect_list.append(vect)
 
         if locr == False:
