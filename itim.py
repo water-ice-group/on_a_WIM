@@ -161,8 +161,11 @@ class monolayer_properties:
     def get_OH_vects(self,ox,h1,h2,boxdim):
 
         '''Input single frame. Returns the dipole vector calculated for given water molecules.'''
-        vect1 = distances.apply_PBC(h1-ox,box=boxdim)
-        vect2 = distances.apply_PBC(h2-ox,box=boxdim)
+        center = boxdim[:3]/2
+        init_1 = distances.apply_PBC(h1-ox+center,box=boxdim)
+        init_2 = distances.apply_PBC(h2-ox+center,box=boxdim)
+        vect1 = init_1 - center
+        vect2 = init_2 - center
 
         return (vect1,vect2)
     
@@ -175,8 +178,10 @@ class monolayer_properties:
         loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]
 
         vect_list = []
+        center = boxdim[:3]/2
         for i in range(len(atomtype_1)):
-            vect = distances.apply_PBC(atomtype_2[loc[i]]-atomtype_1[i],boxdim)
+            init = distances.apply_PBC( (atomtype_2[loc[i]]-atomtype_1[i]) + center,boxdim)
+            vect = init-center
             vect_list.append(vect)
 
         if locr == False:
@@ -188,9 +193,15 @@ class monolayer_properties:
     def calc_angles(self,vect1,vect2):
 
         cosTheta = [np.dot(vect1[i],vect2[i])/((np.linalg.norm(vect1[i]))*np.linalg.norm(vect2[i])) for i in range(len(vect1))]
-        theta = np.rad2deg(np.arccos(cosTheta))
-        #theta = cosTheta
+        #theta = np.rad2deg(np.arccos(cosTheta))
+        theta = cosTheta
+
         return theta
+    
+    def calc_angle_normal(self,vect1):
+        vect2    = [0,0,1]
+        cosTheta = [np.dot(vect1[i],vect2)/((np.linalg.norm(vect1[i]))*np.linalg.norm(vect2)) for i in range(len(vect1))]
+        return cosTheta
 
 
     #####################################################################################################
@@ -202,9 +213,13 @@ class monolayer_properties:
         interface. Select layer using the monolayer class.'''
 
         dipVector = self.get_dipoles(ox,h1,h2,boxdim)
+        print(dipVector[-1])
+        
         dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-
+        print(surf_vect[-1])
+        
         theta = self.calc_angles(dipVector,surf_vect)
+        
 
         return (dist,theta)
     
@@ -213,10 +228,7 @@ class monolayer_properties:
 
         vect1,vect2 = self.get_OH_vects(ox,h1,h2,boxdim)
         dist,surf_vect_1 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-        #dist,surf_vect_2 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-
         
-
         theta_1 = self.calc_angles(vect1,surf_vect_1)
         theta_2 = self.calc_angles(vect2,surf_vect_1)
         output = np.concatenate((theta_1,theta_2))

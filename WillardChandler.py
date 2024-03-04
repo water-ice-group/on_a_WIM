@@ -55,6 +55,8 @@ class WillardChandler:
         print('---------------------')
         print()
 
+        self._grid = grid
+
         # create position object and extract positions (unwrapped)
         pos = AtomPos(self._u,self._start,self._end)
         self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
@@ -91,6 +93,7 @@ class WillardChandler:
     def save(self):  
         self.inter.save_coords(self._WC)
 
+
     def load(self,inter):
         wc_univ = inter.load_coords()
         loaded_coords = []
@@ -101,11 +104,28 @@ class WillardChandler:
 
         return loaded_coords
         
+    def surface_stats(self,bins=100):
+
+        inter = WC_Interface(self._u,self._grid,self._lz,self._uz)
+
+        num_cores = multiprocessing.cpu_count()
+        print('Getting surface stats ...')
+        result = Parallel(n_jobs=num_cores)(delayed(inter.dist_surf_deform)(self._WC[i]) for i in tqdm(range(len(self._WC)))) # parse through frames
+
+        print('Generating histogram(s)')
         
+        hist_input = np.concatenate(result).ravel()
+        #avg_val = np.average(hist_input)
+        #hist_input = [i-avg_val for i in hist_input]
 
+        density,x_range = np.histogram(hist_input,bins=bins,density=True)
 
-
-
+        save_dat = np.array([x_range[:-1],density])
+        save_dat = save_dat.transpose()
+        np.savetxt('outputs/surface_stats.dat',save_dat)
+        print('Done')
+        print()
+        return (density,x_range[:-1])
 
         
     ##########################################################################
@@ -212,7 +232,7 @@ class WillardChandler:
 
     # orientation
         
-    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='z'):
+    def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='WC',prop='dipole'):
 
 
         """Computes orientations of near-interface molecules based on specified atom type and histogram type.
@@ -248,7 +268,7 @@ class WillardChandler:
                 lower = lower
                 upper = 0
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],vect) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],vect,prop) for i in tqdm(range(len(self._cpos))))
             if vect == 'WC':
                 lower = 0
                 upper = upper
@@ -259,14 +279,8 @@ class WillardChandler:
         theta = [i[1] for i in result]
         
         print('Generating histogram(s)')
-
-        print(len(dist))
-        print(len(theta))
         dist_array = np.concatenate(dist).ravel()
         Theta_array = np.concatenate(theta).ravel()
-
-        print(len(dist_array))
-        print(len(Theta_array))
         
 
 
@@ -433,8 +447,6 @@ class WillardChandler:
         cluster_prop = monolayer_properties(self._u)
 
         inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
-        for i in inter_ox[-1]:
-            print(i[2])
 
 
         if property=='water_dipole':
@@ -469,7 +481,7 @@ class WillardChandler:
 
         density,x_range = np.histogram(hist_input,bins=bins,
                                     density=norm,
-                                    range=(0,180)
+                                    range=(-1,1)
                                     )
 
         save_dat = np.array([x_range[:-1],density])

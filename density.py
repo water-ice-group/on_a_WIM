@@ -26,13 +26,11 @@ class Density:
         
         pos = []
         wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
-        inp = np.array(inp)
         wrap = np.array(wrap)
         if cutoff==True:
-            for i in range(len(inp)):
+            for i in range(len(wrap)):
                 if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
                     pos.append(wrap[i]) # append the unwrapped coordinates?
-            #pos = np.array(wrap)
             pos = np.array(pos)
         if cutoff==False:
             pos = wrap
@@ -47,16 +45,14 @@ class Density:
         
         mag = []
         vect_list = []
+        center = boxdim[:3]/2
         for i in range(len(pos)):
             z_unit  = [0,0,1]
-            #vect = distances.apply_PBC(pos[i] - WC_spline[loc[i]],boxdim)
-            #vect = pos[i] - WC_spline[loc[i]]
-            vect = WC_spline[loc[i]] - pos[i] # AMENDED - CHECK THIS
-            scal_proj = np.dot(vect,z_unit)
+            init = distances.apply_PBC((WC_spline[loc[i]] - pos[i]) + center,box=boxdim)
+            vect = init - center 
+            scal_proj = np.dot(z_unit,vect)
             mag.append(scal_proj)
             vect_list.append(vect)
-
-
                 
         mag_prox = [0]*len(mag)
         for i in range(len(mag)):
