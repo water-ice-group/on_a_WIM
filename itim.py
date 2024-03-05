@@ -151,10 +151,17 @@ class monolayer_properties:
 
         '''Input single frame. Returns the dipole vector calculated for given water molecules.'''
 
-        center = boxdim[:3]/2
-        vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
-        vect2 = distances.apply_PBC(h2-ox+center,box=boxdim)
-        dipVector = (vect1 + vect2) * 0.5 - center
+        # center = boxdim[:3]/2
+        # ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
+        # h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
+        # h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
+        # vect1 = h1_wrap_c - ox_wrap_c
+        # vect2 = h2_wrap_c - ox_wrap_c
+        # dipVector = (vect1 + vect2) * 0.5
+
+        vect1 = distances.minimize_vectors(h1-ox,box=boxdim)
+        vect2 = distances.minimize_vectors(h2-ox,box=boxdim)
+        dipVector = (vect1 + vect2) * 0.5
 
         return dipVector
     
@@ -162,10 +169,19 @@ class monolayer_properties:
 
         '''Input single frame. Returns the dipole vector calculated for given water molecules.'''
         center = boxdim[:3]/2
-        init_1 = distances.apply_PBC(h1-ox+center,box=boxdim)
-        init_2 = distances.apply_PBC(h2-ox+center,box=boxdim)
-        vect1 = init_1 - center
-        vect2 = init_2 - center
+        # init_1 = distances.apply_PBC(h1-ox+center,box=boxdim)
+        # init_2 = distances.apply_PBC(h2-ox+center,box=boxdim)
+        # vect1 = init_1 - center
+        # vect2 = init_2 - center
+
+        # ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
+        # h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
+        # h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
+        # vect1 = h1_wrap_c - ox_wrap_c
+        # vect2 = h2_wrap_c - ox_wrap_c
+
+        vect1 = distances.minimize_vectors(h1-ox,box=boxdim)
+        vect2 = distances.minimize_vectors(h2-ox,box=boxdim)
 
         return (vect1,vect2)
     
@@ -180,7 +196,7 @@ class monolayer_properties:
         vect_list = []
         center = boxdim[:3]/2
         for i in range(len(atomtype_1)):
-            init = distances.apply_PBC( (atomtype_2[loc[i]]-atomtype_1[i]) + center,boxdim)
+            init = distances.minimize_vectors(atomtype_2[loc[i]]-atomtype_1[i],box=boxdim)
             vect = init-center
             vect_list.append(vect)
 
@@ -193,8 +209,8 @@ class monolayer_properties:
     def calc_angles(self,vect1,vect2):
 
         cosTheta = [np.dot(vect1[i],vect2[i])/((np.linalg.norm(vect1[i]))*np.linalg.norm(vect2[i])) for i in range(len(vect1))]
-        #theta = np.rad2deg(np.arccos(cosTheta))
-        theta = cosTheta
+        theta = np.rad2deg(np.arccos(cosTheta))
+        #theta = cosTheta
 
         return theta
     
@@ -213,10 +229,10 @@ class monolayer_properties:
         interface. Select layer using the monolayer class.'''
 
         dipVector = self.get_dipoles(ox,h1,h2,boxdim)
-        print(dipVector[-1])
+        
         
         dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-        print(surf_vect[-1])
+        
         
         theta = self.calc_angles(dipVector,surf_vect)
         

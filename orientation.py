@@ -17,10 +17,13 @@ class Orientation:
     def _getCosTheta(self,ox,h1,h2,wc,boxdim,vector):
 
         center = boxdim[:3]/2
-        vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
-        vect2 = distances.apply_PBC(h2-ox+center,box=boxdim)
-        dipVector0 = (vect1 + vect2) * 0.5 - center
-        unitvect = ( dipVector0 / np.linalg.norm(dipVector0, axis=1)[:, None] )
+        # vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
+        # vect2 = distances.apply_PBC(h2-ox+center,box=boxdim)
+
+        vect1 = distances.minimize_vectors(h1-ox,boxdim)
+        vect2 = distances.minimize_vectors(h2-ox,boxdim)
+
+        dipVector0 = (vect1 + vect2) * 0.5 # - center # map the dipole
 
         dens = Density(self._u)
         dist,surf_vect = dens.proximity(wc,ox,boxdim,result='both',cutoff=False)
@@ -53,9 +56,13 @@ class Orientation:
 
         if property=='dipole':
             center = boxdim[:3]/2
-            vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
-            vect2 = distances.apply_PBC(oc2-c+center,box=boxdim) 
-            dipVector0 = (vect1 + vect2) * 0.5 - center # map the dipole
+            # vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
+            # vect2 = distances.apply_PBC(oc2-c+center,box=boxdim)
+
+            vect1 = distances.minimize_vectors(oc1-c,boxdim)
+            vect2 = distances.minimize_vectors(oc2-c,boxdim)
+
+            dipVector0 = (vect1 + vect2) * 0.5 # - center # map the dipole
 
             dens = Density(self._u)
             dist,surf_vect = dens.proximity(wc,c,boxdim,result='both',cutoff=False)
@@ -70,10 +77,13 @@ class Orientation:
         elif property=='bond':
             center = boxdim[:3]/2
 
-            init_1 = distances.apply_PBC(oc1-c+center,box=boxdim)
-            init_2 = distances.apply_PBC(oc2-c+center,box=boxdim)
-            vect1 = init_1 - center
-            vect2 = init_2 - center
+            # init_1 = distances.apply_PBC(oc1-c+center,box=boxdim)
+            # init_2 = distances.apply_PBC(oc2-c+center,box=boxdim)
+            # vect1 = init_1 - center
+            # vect2 = init_2 - center
+
+            vect1 = distances.minimize_vectors(oc1-c,boxdim)
+            vect2 = distances.minimize_vectors(oc2-c,boxdim)
 
             #test_1 = oc1-c
             #print(f'Normal {test_1[-5]}')

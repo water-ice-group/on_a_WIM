@@ -48,8 +48,15 @@ class Density:
         center = boxdim[:3]/2
         for i in range(len(pos)):
             z_unit  = [0,0,1]
-            init = distances.apply_PBC((WC_spline[loc[i]] - pos[i]) + center,box=boxdim)
-            vect = init - center 
+            # init = distances.apply_PBC((WC_spline[loc[i]] - pos[i]) + center,box=boxdim)
+            # vect = init - center
+
+            # surf_wrap_c = distances.apply_PBC(WC_spline[loc[i]]+center,box=boxdim)
+            # pos_wrap_c  = distances.apply_PBC(pos[i]+center,box=boxdim)
+            # vect = surf_wrap_c - pos_wrap_c
+
+            vect = distances.minimize_vectors(WC_spline[loc[i]]-pos[i],box=boxdim)
+
             scal_proj = np.dot(z_unit,vect)
             mag.append(scal_proj)
             vect_list.append(vect)

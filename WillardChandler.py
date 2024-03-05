@@ -481,13 +481,17 @@ class WillardChandler:
 
         density,x_range = np.histogram(hist_input,bins=bins,
                                     density=norm,
-                                    range=(-1,1)
+                                    range=(0,180)
                                     )
+        
+        output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
 
-        save_dat = np.array([x_range[:-1],density])
+        print(output)
+
+        save_dat = np.array([x_range[:-1],output])
         save_dat = save_dat.transpose()
         np.savetxt(f'./outputs/cluster_{property}_angle.dat',save_dat)
-        return (density,x_range[:-1])
+        return (output,x_range[:-1])
 
 
     def Hbond_prop(self,bins=100):
