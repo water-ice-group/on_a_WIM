@@ -97,17 +97,6 @@ class monolayer:
         
         return (updated_opos,updated_h1pos,updated_h2pos)
 
-    def extract_atoms(self,distance_matrix, threshold):
-
-        '''Determine the molecules that reside within a certain cutoff 
-        of the instantaneous interface.'''
-
-        within_threshold_mask = distance_matrix <= threshold
-        within_threshold_rows = np.any(within_threshold_mask, axis=1)
-        atoms_within_distance = np.where(within_threshold_rows)[0]
-        
-        return atoms_within_distance
-
 # ----------------------------------------------------------------------------------------------------------
     
     # save coordinates of the interfacial water molecules
@@ -356,8 +345,16 @@ class monolayer_properties:
     
     '''Isolating interfacial CO2 more difficult. Following section looks to calculate RDFs.'''
 
+    def extract_atoms(self,distance_matrix, threshold):
 
+        '''Determine the molecules that reside within a certain cutoff 
+        of the instantaneous interface.'''
 
+        within_threshold_mask = distance_matrix <= threshold
+        within_threshold_rows = np.any(within_threshold_mask, axis=1)
+        atoms_within_distance = np.where(within_threshold_rows)[0]
+
+        return atoms_within_distance
 
     def co2_surf_dist(self,wc_inter,cpos,boxdim,cutoff):
 
