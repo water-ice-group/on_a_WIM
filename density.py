@@ -35,7 +35,6 @@ class Density:
         if cutoff==False:
             pos = wrap
 
-
         WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
         
         
@@ -45,16 +44,10 @@ class Density:
         
         mag = []
         vect_list = []
-        center = boxdim[:3]/2
+
         for i in range(len(pos)):
+            
             z_unit  = [0,0,1]
-            # init = distances.apply_PBC((WC_spline[loc[i]] - pos[i]) + center,box=boxdim)
-            # vect = init - center
-
-            # surf_wrap_c = distances.apply_PBC(WC_spline[loc[i]]+center,box=boxdim)
-            # pos_wrap_c  = distances.apply_PBC(pos[i]+center,box=boxdim)
-            # vect = surf_wrap_c - pos_wrap_c
-
             vect = distances.minimize_vectors(WC_spline[loc[i]]-pos[i],box=boxdim)
 
             scal_proj = np.dot(z_unit,vect)
@@ -74,7 +67,14 @@ class Density:
             return np.array(vect_list)
         elif result == 'both':
             return (mag_prox,np.array(vect_list))
-        
+
+# center = boxdim[:3]/2 
+# init = distances.apply_PBC((WC_spline[loc[i]] - pos[i]) + center,box=boxdim)
+# vect = init - center
+
+# surf_wrap_c = distances.apply_PBC(WC_spline[loc[i]]+center,box=boxdim)
+# pos_wrap_c  = distances.apply_PBC(pos[i]+center,box=boxdim)
+# vect = surf_wrap_c - pos_wrap_c
 
 
 

@@ -60,7 +60,7 @@ class WillardChandler:
         # create position object and extract positions (unwrapped)
         pos = AtomPos(self._u,self._start,self._end)
         self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
-        opos_traj = self._opos # wrapped oxygen coordinates to form the main coords to generatin the interface. 
+        opos_traj = self._opos 
 
         # create interface object
         inter = WC_Interface(self._u,grid,self._lz,self._uz)
@@ -376,12 +376,11 @@ class WillardChandler:
 
     # cluster analysis 
 
-    def Clusters(self,atomtype_1='OW',atomtype_2='C',layer=1,bins=75,range=(0,10)):
-
+    def save_inter_h2o(self):
+        
         itim = monolayer(self._u,self._start,self._end)
-        result = itim.cluster_RDF_pytim(atomtype_1=atomtype_1,atomtype_2=atomtype_2,layer=layer,bins=bins)
+        itim.save_coords()
 
-        return result
 
     def surface_rdf(self,bins):
 
@@ -522,7 +521,8 @@ class WillardChandler:
         norm=True
         density_ang,x_range_ang = np.histogram(hist_input,bins=bins,
                                     density=norm,range=(1,180))
-        save_dat = np.array([x_range_ang[:-1],density_ang])
+        output = [density_ang[i]/( 0.5*np.sin((x_range_ang[i]*(np.pi / 180))) ) for i in range(len(x_range_ang[:-1]))]
+        save_dat = np.array([x_range_ang[:-1],output])
         save_dat = save_dat.transpose()
         np.savetxt(f'./outputs/hbonding_ang_surf.dat',save_dat)
 

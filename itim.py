@@ -10,6 +10,7 @@ import pytim
 from pytim import observables
 from scipy import stats
 from density import Density
+from ase import io
 
 class monolayer:
 
@@ -30,48 +31,8 @@ class monolayer:
 
 
     ############################################################################################
-    ###################################  RDFs  #################################################
+    #########################  Identify surface molecules  #####################################
     ############################################################################################
-    #                          Currently under maintainance
-
-    # def cluster_RDF_basic(self,atomtype_1,atomtype_2,layer,bins,range):
-    #     '''Cluster analysis for a single frame.'''
-
-
-    #     u,*_ = self.locate(atomtype=atomtype_1)
-    #     mol_1 = u.atoms[self._u.atoms.layers==layer]
-    #     mol_2 = u.select_atoms(f'name {atomtype_2}')
-
-    #     if atomtype_1==atomtype_2:
-    #         rdf = InterRDF(mol_1,mol_2,
-    #                        #exclusion_block=(0,0),
-    #                        nbins=bins,range=range)
-    #         rdf.run()
-
-    #         return (rdf.bins,rdf.rdf)
-        
-    #     else:
-    #         rdf = InterRDF(mol_1,mol_2,nbins=bins,range=range)
-    #         rdf.run()
-
-    #         return (rdf.bins,rdf.rdf)
-
-
-    # def cluster_RDF_pytim(self,atomtype_1,atomtype_2,layer,bins):
-        
-    #     u,inter = self.locate(atomtype=atomtype_1)
-    #     mol_1 = u.atoms[self._u.atoms.layers==layer]
-    #     mol_2 = u.select_atoms(f'name {atomtype_2}')
-
-    #     nres = observables.Number()
-    #     rdf = observables.RDF(u,max_distance=10,observable=nres,observable2=nres,nbins=bins)
-
-    #     for ts in u.trajectory[:]:
-    #         rdf.sample(mol_1,mol_2)
-    #     rdf.count[0] = 0
-
-    #     return(rdf.bins,rdf.rdf)
-        
 
     def surf_positions(self):
 
@@ -106,6 +67,9 @@ class monolayer:
 
     def surf_positions_single_interface(self,boxdim):
 
+        '''Determine the interfacial water molecules for a single interface.
+        (Required for NPT analysis)'''
+
         opos,h1_traj,h2_traj = self.surf_positions()
         
 
@@ -133,8 +97,32 @@ class monolayer:
         
         return (updated_opos,updated_h1pos,updated_h2pos)
 
+    def extract_atoms(self,distance_matrix, threshold):
+
+        '''Determine the molecules that reside within a certain cutoff 
+        of the instantaneous interface.'''
+
+        within_threshold_mask = distance_matrix <= threshold
+        within_threshold_rows = np.any(within_threshold_mask, axis=1)
+        atoms_within_distance = np.where(within_threshold_rows)[0]
+        
+        return atoms_within_distance
+
+# ----------------------------------------------------------------------------------------------------------
+    
+    # save coordinates of the interfacial water molecules
+    def save_coords(self):
+    
+        u_alt,interface = self.locate()
+        with mda.Writer("outputs/interfacial_h2o.pdb") as W:
+            for ts in u_alt.trajectory:
+                ag = u_alt.atoms[u_alt.atoms.layers==1]
+                W.write(ag)
+
+        #interface.writepdb('outputs/interfacial_h2o.pdb',centered=False)
 
     
+
 
 
     ############################################################################################
@@ -151,39 +139,40 @@ class monolayer_properties:
 
         '''Input single frame. Returns the dipole vector calculated for given water molecules.'''
 
-        # center = boxdim[:3]/2
-        # ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
-        # h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
-        # h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
-        # vect1 = h1_wrap_c - ox_wrap_c
-        # vect2 = h2_wrap_c - ox_wrap_c
-        # dipVector = (vect1 + vect2) * 0.5
-
         vect1 = distances.minimize_vectors(h1-ox,box=boxdim)
         vect2 = distances.minimize_vectors(h2-ox,box=boxdim)
         dipVector = (vect1 + vect2) * 0.5
 
         return dipVector
     
+# center = boxdim[:3]/2
+# ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
+# h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
+# h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
+# vect1 = h1_wrap_c - ox_wrap_c
+# vect2 = h2_wrap_c - ox_wrap_c
+# dipVector = (vect1 + vect2) * 0.5
+    
     def get_OH_vects(self,ox,h1,h2,boxdim):
 
         '''Input single frame. Returns the dipole vector calculated for given water molecules.'''
-        center = boxdim[:3]/2
-        # init_1 = distances.apply_PBC(h1-ox+center,box=boxdim)
-        # init_2 = distances.apply_PBC(h2-ox+center,box=boxdim)
-        # vect1 = init_1 - center
-        # vect2 = init_2 - center
-
-        # ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
-        # h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
-        # h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
-        # vect1 = h1_wrap_c - ox_wrap_c
-        # vect2 = h2_wrap_c - ox_wrap_c
 
         vect1 = distances.minimize_vectors(h1-ox,box=boxdim)
         vect2 = distances.minimize_vectors(h2-ox,box=boxdim)
 
         return (vect1,vect2)
+    
+# center = boxdim[:3]/2
+# init_1 = distances.apply_PBC(h1-ox+center,box=boxdim)
+# init_2 = distances.apply_PBC(h2-ox+center,box=boxdim)
+# vect1 = init_1 - center
+# vect2 = init_2 - center
+
+# ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
+# h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
+# h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
+# vect1 = h1_wrap_c - ox_wrap_c
+# vect2 = h2_wrap_c - ox_wrap_c
     
     def get_closest_vect(self,atomtype_1,atomtype_2,boxdim,locr=False):
 
@@ -196,8 +185,8 @@ class monolayer_properties:
         vect_list = []
         center = boxdim[:3]/2
         for i in range(len(atomtype_1)):
-            init = distances.minimize_vectors(atomtype_2[loc[i]]-atomtype_1[i],box=boxdim)
-            vect = init-center
+            vect = distances.minimize_vectors(atomtype_2[loc[i]]-atomtype_1[i],box=boxdim)
+            #vect = init-center
             vect_list.append(vect)
 
         if locr == False:
@@ -367,12 +356,7 @@ class monolayer_properties:
     
     '''Isolating interfacial CO2 more difficult. Following section looks to calculate RDFs.'''
 
-    def extract_atoms(self,distance_matrix, threshold):
-        within_threshold_mask = distance_matrix <= threshold
-        within_threshold_rows = np.any(within_threshold_mask, axis=1)
-        atoms_within_distance = np.where(within_threshold_rows)[0]
-        
-        return atoms_within_distance
+
 
 
     def co2_surf_dist(self,wc_inter,cpos,boxdim,cutoff):
@@ -384,9 +368,7 @@ class monolayer_properties:
 
         co2_surf = [cpos[i] for i in loc]
         co2_surf = np.array(co2_surf)
-        #print(len(co2_surf))
-        #for i in range(len(co2_surf)):
-        #    print(co2_surf[i][2])
+
         try:
             co2_dist = self_distance_array(co2_surf,box=boxdim)
             return co2_dist
