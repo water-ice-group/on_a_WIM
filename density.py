@@ -20,7 +20,7 @@ class Density:
         
     
 
-    def proximity(self,WC_inter,inp,boxdim,upper=25,result='mag',cutoff=True):
+    def proximity(self,WC_inter,inp,boxdim,upper=25,result='mag',cutoff=False):
         '''Obtain the proximities of each particular molecule to the WC interface.'''
         '''Input of a SINGLE FRAME into the function.'''
         
@@ -35,10 +35,13 @@ class Density:
         if cutoff==False:
             pos = wrap
 
-        WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
-        
-        
-        dist_mat = distance_array(pos, WC_spline, box=boxdim) # should account for the wrapping. 
+        #WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
+        #WC_spline = WC_inter
+
+        try:
+            dist_mat = distance_array(pos, WC_inter, box=boxdim) # should account for the wrapping. 
+        except:
+            dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim) # should account for the wrapping. 
         proxim = np.min(dist_mat,axis=1) # obtain min for each row/atom. 
         loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))] # obtain splined interface coordinate closest to the ox positions. 
         
@@ -48,7 +51,7 @@ class Density:
         for i in range(len(pos)):
             
             z_unit  = [0,0,1]
-            vect = distances.minimize_vectors(WC_spline[loc[i]]-pos[i],box=boxdim)
+            vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
 
             scal_proj = np.dot(z_unit,vect)
             mag.append(scal_proj)

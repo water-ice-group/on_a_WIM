@@ -360,7 +360,10 @@ class monolayer_properties:
 
         '''Identify CO2s residing at the water surface using proximity to the instantaneous interface.'''
 
-        dist_mat = distance_array(cpos,wc_inter,box=boxdim)
+        try:
+            dist_mat = distance_array(cpos,wc_inter,box=boxdim)
+        except:
+            dist_mat = distance_array(cpos,np.array(wc_inter),box=boxdim)
         loc = self.extract_atoms(dist_mat,cutoff)
 
         co2_surf = [cpos[i] for i in loc]
