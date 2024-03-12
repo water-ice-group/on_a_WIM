@@ -529,24 +529,31 @@ class WillardChandler:
         return ((density_dist,x_range_dist[:-1]),(density_ang,x_range_ang[:-1]))
 
     
-    def surf_co2(self,cutoff=4,bins=100,norm=True):
+    def surf_co2(self,property='rdf',cutoff=4,bins=100,norm=True):
 
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
         num_cores = int(multiprocessing.cpu_count())
-        result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
-        hist_input = np.concatenate(result).ravel()
-
-        density,x_range = np.histogram(hist_input,bins=bins,
+        if property=='rdf':
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
+            hist_input = np.concatenate(result).ravel()
+            density,x_range = np.histogram(hist_input,bins=bins,
                             density=norm,range=(1,10))
-        
-        density = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
-        
-        save_dat = np.array([x_range[:-1],density])
+            density = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
+
+        elif property=='CO_angle':
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
+            hist_input = np.concatenate(result).ravel()
+            density,x_range = np.histogram(hist_input,bins=bins,
+                            density=norm,range=(0,180))
+            output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
+
+                
+        save_dat = np.array([x_range[:-1],output])
         save_dat = save_dat.transpose()
         np.savetxt(f'./outputs/surf_co2_dist.dat',save_dat)
-        return (density,x_range[:-1])
+        return (output,x_range[:-1])
         
 
     

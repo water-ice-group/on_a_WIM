@@ -369,6 +369,7 @@ class monolayer_properties:
         co2_surf = [cpos[i] for i in loc]
         co2_surf = np.array(co2_surf)
 
+
         try:
             co2_dist = self_distance_array(co2_surf,box=boxdim)
             return co2_dist
@@ -376,6 +377,37 @@ class monolayer_properties:
             result = [0,0]
             return result
             # do nothin
+        
+    def co2_bond_angles_surf(self,wc,cpos,ocpos1,ocpos2,boxdim,cutoff):
+
+        try:
+            dist_mat = distance_array(cpos,wc,box=boxdim)
+        except:
+            dist_mat = distance_array(cpos,np.array(wc),box=boxdim)
+        loc = self.extract_atoms(dist_mat,cutoff)
+
+        c_surf = [cpos[i] for i in loc]
+        oc1_surf = [ocpos1[i] for i in loc]
+        oc2_surf = [ocpos2[i] for i in loc]
+        c_surf = np.array(c_surf)
+        oc1_surf = np.array(oc1_surf)
+        oc2_surf = np.array(oc2_surf)
+
+        vect_1 = distances.minimize_vectors(oc1_surf - c_surf,box=boxdim)
+        vect_2 = distances.minimize_vectors(oc2_surf - c_surf,box=boxdim)
+
+        dist,surf_vect = Density(self._u).proximity(wc,c_surf,boxdim,result='both',cutoff=False)
+
+        theta_1 = self.calc_angles(vect_1,surf_vect)
+        theta_2 = self.calc_angles(vect_2,surf_vect)
+
+        output = np.concatenate((theta_1,theta_2))
+
+        return output
+
+
+   
+
 
 
 
