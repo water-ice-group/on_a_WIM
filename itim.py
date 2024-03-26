@@ -345,46 +345,46 @@ class monolayer_properties:
     
     '''Isolating interfacial CO2 more difficult. Following section looks to calculate RDFs.'''
 
-    def extract_atoms(self,distance_matrix, threshold):
+    def extract_atoms(self, distance_matrix, min_distance, max_distance):
 
-        '''Determine the molecules that reside within a certain cutoff 
-        of the instantaneous interface.'''
+        '''Determine the molecules that reside within a certain distance range 
+        from the instantaneous interface.'''
 
-        within_threshold_mask = distance_matrix <= threshold
-        within_threshold_rows = np.any(within_threshold_mask, axis=1)
-        atoms_within_distance = np.where(within_threshold_rows)[0]
+        within_distance_range_mask = (distance_matrix >= min_distance) & (distance_matrix <= max_distance)
+        within_distance_range_rows = np.any(within_distance_range_mask, axis=1)
+        atoms_within_distance_range = np.where(within_distance_range_rows)[0]
 
-        return atoms_within_distance
+        return atoms_within_distance_range
 
-    def co2_surf_dist(self,wc_inter,cpos,boxdim,cutoff):
+    def co2_surf_dist(self, wc_inter, cpos, boxdim, min_distance, max_distance):
 
         '''Identify CO2s residing at the water surface using proximity to the instantaneous interface.'''
 
         try:
-            dist_mat = distance_array(cpos,wc_inter,box=boxdim)
+            dist_mat = distance_array(cpos, wc_inter, box=boxdim)
         except:
-            dist_mat = distance_array(cpos,np.array(wc_inter),box=boxdim)
-        loc = self.extract_atoms(dist_mat,cutoff)
+            dist_mat = distance_array(cpos, np.array(wc_inter), box=boxdim)
+        loc = self.extract_atoms(dist_mat, min_distance, max_distance)
 
         co2_surf = [cpos[i] for i in loc]
         co2_surf = np.array(co2_surf)
 
-
         try:
-            co2_dist = self_distance_array(co2_surf,box=boxdim)
+            co2_dist = self_distance_array(co2_surf, box=boxdim)
             return co2_dist
         except:
-            result = [0,0]
+            result = [0, 0]
             return result
-            # do nothin
+            # do nothing if no co2 at the surface.
         
-    def co2_bond_angles_surf(self,wc,cpos,ocpos1,ocpos2,boxdim,cutoff):
+
+    def co2_bond_angles_surf(self,wc,cpos,ocpos1,ocpos2,boxdim,min_distance,max_distance):
 
         try:
             dist_mat = distance_array(cpos,wc,box=boxdim)
         except:
             dist_mat = distance_array(cpos,np.array(wc),box=boxdim)
-        loc = self.extract_atoms(dist_mat,cutoff)
+        loc = self.extract_atoms(dist_mat,min_distance,max_distance)
 
         c_surf = [cpos[i] for i in loc]
         oc1_surf = [ocpos1[i] for i in loc]
