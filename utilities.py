@@ -14,8 +14,6 @@ class AtomPos:
         self._start = start_step if start_step is not None else (0)
         self._end = end_step if end_step is not None else (len(self._u.trajectory)-1)
         
-        
-        
     def prepare(self):
         
         if os.path.isdir('./outputs'):
@@ -29,6 +27,20 @@ class AtomPos:
         print()
     
         return (opos,h1pos,h2pos,cpos,ocpos1,ocpos2,box_dim)
+    
+    def prepare_unorg(self):
+        
+        if os.path.isdir('./outputs'):
+            print('Output directory detected.')
+        else:
+            os.mkdir('./outputs')
+
+        print()
+        print('Obtaining atom coordinates.')
+        opos,hpos,box_dim = self.positions_unorg()
+        print()
+    
+        return (opos,hpos,box_dim)
         
 
     def positions(self):
@@ -82,4 +94,26 @@ class AtomPos:
             box_dim.append(self._u.dimensions)
     
         return (opos_traj,h1_traj,h2_traj,cpos_traj,ocpos1_traj,ocpos2_traj,box_dim)
+    
+
+    def positions_unorg(self):
+        '''Load trajectory for water.'''
+        opos_traj = []
+        hpos_traj = []
+        box_dim = []
+
+        length = len(self._u.trajectory[self._start:self._end])
+        print('Parsing through frames.')
+        print(f'Total: {length}.')
+
+        for ts in self._u.trajectory[self._start:self._end]:
+
+            opos = self._u.select_atoms('name' + ' OW').positions
+            hpos = self._u.select_atoms('name' + ' H').positions
+            opos_traj.append(opos)
+            hpos_traj.append(hpos_traj)
+
+            box_dim.append(self._u.dimensions)
+    
+        return (opos_traj,hpos_traj,box_dim)
 

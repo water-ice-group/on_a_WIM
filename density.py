@@ -80,6 +80,35 @@ class Density:
 # vect = surf_wrap_c - pos_wrap_c
 
 
+def hydroniums(self,ox,hy,boxdim,cutoff=1.5):
+
+    dist_mat = distance_array(ox, hy, box=boxdim)
+
+    within_threshold_mask = dist_mat <= cutoff
+    within_threshold_rows = np.any(within_threshold_mask, axis=1)
+    atoms_within_distance = np.where(within_threshold_rows)[0]
+
+    poss_hydro = []
+    for i in range(len(atoms_within_distance)):
+        if len(atoms_within_distance[i]) == 3:
+            poss_hydro.append(ox[i])
+    
+    if len(poss_hydro) == 1:
+        return poss_hydro
+    
+    elif len(poss_hydro) > 1:
+        dist_mat = distance_array(np.array(poss_hydro), hy, box=boxdim)
+        smallest_values = np.partition(dist_mat, 3, axis=1)[:, :3]
+        column_indices = np.argsort(dist_mat, axis=1)[:, :3]
+        result = [(smallest_values[i, j], i, column_indices[i, j]) for i in range(len(dist_mat)) for j in range(3)]
+        
+        sumation = [sum(result[i][0]) for i in result]
+        proxim = np.min(sumation) # obtain min for each row/atom. 
+        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]
+        return poss_hydro[loc]
+
+    else:
+        return []
 
 
 

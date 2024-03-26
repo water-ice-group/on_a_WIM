@@ -46,7 +46,7 @@ class WillardChandler:
 
 
 
-    def generate(self,grid=400,new_inter=True):
+    def generate(self,grid=400,new_inter=True,org=True):
         '''Generate the WC interface.'''
         
         print()
@@ -58,9 +58,15 @@ class WillardChandler:
         self._grid = grid
 
         # create position object and extract positions (unwrapped)
-        pos = AtomPos(self._u,self._start,self._end)
-        self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
-        opos_traj = self._opos 
+        # 
+        if org==True:       # organise waters by closest hydrogens
+            pos = AtomPos(self._u,self._start,self._end)
+            self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
+            opos_traj = self._opos
+        elif org==False:    # no organisation of waters. Extract list of oxygens and hydrogens. 
+            pos = AtomPos(self._u,self._start,self._end)
+            self._opos,self._hpos,self._boxdim = pos.prepare_unorg()
+            opos_traj = self._opos
 
         # create interface object
         inter = WC_Interface(self._u,grid,self._lz,self._uz)
@@ -88,6 +94,9 @@ class WillardChandler:
 
         self.inter = inter
         return self._WC
+
+
+
     
     # save coordinates for visualisation
     def save(self):  
@@ -307,6 +316,8 @@ class WillardChandler:
             np.savetxt(f'./outputs/heatmap_X_{atomtype}.dat',X)
             np.savetxt(f'./outputs/heatmap_Y_{atomtype}.dat',Y)
             np.savetxt(f'./outputs/heatmap_hist_{atomtype}.dat',H)
+            print('Done.')
+            print()
             return (X,Y,H)
 
 
