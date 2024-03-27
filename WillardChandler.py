@@ -546,13 +546,13 @@ class WillardChandler:
             result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
-                            density=norm,range=(0,180))
+                            density=norm,range=(1,180))
             output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
 
                 
         save_dat = np.array([x_range[:-1],output])
         save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/surf_co2_dist.dat',save_dat)
+        np.savetxt(f'./outputs/surf_co2_{property}.dat',save_dat)
         return (output,x_range[:-1])
         
 
