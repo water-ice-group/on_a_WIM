@@ -2,22 +2,21 @@
 # https://pubs.acs.org/doi/pdf/10.1021/jp909219k
 
 
-import numpy as np
-from interface import WC_Interface
-from utilities import AtomPos
-from density import Density
-from density import dens_plot
-from orientation import Orientation
-from orientation import oriPlot
-from hbondz import Hbondz
-from hbondz import hbondPlot
-from itim import monolayer
-from itim import monolayer_properties
-
+# Standard library imports
 import multiprocessing
+
+# Third-party imports
+import numpy as np
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
+# Local application imports
+from interface import WC_Interface
+from utilities import AtomPos
+from density import Density, dens_plot
+from orientation import Orientation, oriPlot
+from hbondz import Hbondz, hbondPlot
+from itim import monolayer, monolayer_properties
 
 
 class WillardChandler:
@@ -47,6 +46,7 @@ class WillardChandler:
 
 
     def generate(self,grid=400,new_inter=True,org=True):
+
         '''Generate the WC interface.'''
         
         print()
@@ -323,6 +323,14 @@ class WillardChandler:
 
     def Orientation_plot(self,data_Oxygen,data_Carbon=None):
         oriPlot(data_Oxygen,data_Carbon,self._ori_lower,self._ori_upper)
+
+
+
+
+
+
+
+
 
 
 
