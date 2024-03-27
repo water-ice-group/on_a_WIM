@@ -46,7 +46,7 @@ class WillardChandler:
 
 
 
-    def generate(self,grid=400,new_inter=True):
+    def generate(self,grid=400,new_inter=True,org=True):
         '''Generate the WC interface.'''
         
         print()
@@ -58,9 +58,15 @@ class WillardChandler:
         self._grid = grid
 
         # create position object and extract positions (unwrapped)
-        pos = AtomPos(self._u,self._start,self._end)
-        self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
-        opos_traj = self._opos 
+        # 
+        if org==True:       # organise waters by closest hydrogens
+            pos = AtomPos(self._u,self._start,self._end)
+            self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
+            opos_traj = self._opos
+        elif org==False:    # no organisation of waters. Extract list of oxygens and hydrogens. 
+            pos = AtomPos(self._u,self._start,self._end)
+            self._opos,self._hpos,self._boxdim = pos.prepare_unorg()
+            opos_traj = self._opos
 
         # create interface object
         inter = WC_Interface(self._u,grid,self._lz,self._uz)
@@ -88,6 +94,9 @@ class WillardChandler:
 
         self.inter = inter
         return self._WC
+
+
+
     
     # save coordinates for visualisation
     def save(self):  
@@ -307,6 +316,8 @@ class WillardChandler:
             np.savetxt(f'./outputs/heatmap_X_{atomtype}.dat',X)
             np.savetxt(f'./outputs/heatmap_Y_{atomtype}.dat',Y)
             np.savetxt(f'./outputs/heatmap_hist_{atomtype}.dat',H)
+            print('Done.')
+            print()
             return (X,Y,H)
 
 
@@ -529,21 +540,21 @@ class WillardChandler:
         return ((density_dist,x_range_dist[:-1]),(density_ang,x_range_ang[:-1]))
 
     
-    def surf_co2(self,property='rdf',cutoff=4,bins=100,norm=True):
+    def surf_co2(self,property='rdf',min_cutoff=0,max_cutoff=4,bins=100,norm=True):
 
         itim = monolayer(self._u,self._start,self._end)
         cluster_prop = monolayer_properties(self._u)
 
         num_cores = int(multiprocessing.cpu_count())
         if property=='rdf':
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
                             density=norm,range=(1,10))
-            density = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
+            output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
 
         elif property=='CO_angle':
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],cutoff) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
                             density=norm,range=(1,180))
