@@ -68,13 +68,14 @@ class WillardChandler:
             self._opos,self._hpos,self._boxdim = pos.prepare_unorg()
             opos_traj = self._opos
 
+
         # create interface object
         inter = WC_Interface(self._u,grid,self._lz,self._uz)
 
         if new_inter==True: # generate new interfacial surface
 
             # no. of cores
-            num_cores = int(multiprocessing.cpu_count()/2)
+            num_cores = multiprocessing.cpu_count()//4
             print()
             print(f'Number of cores: {num_cores}')
             print()
@@ -137,6 +138,17 @@ class WillardChandler:
         return (density,x_range[:-1])
 
         
+
+
+
+
+
+
+
+
+
+
+
     ##########################################################################
     ################################ Density #################################
     ##########################################################################
@@ -224,6 +236,12 @@ class WillardChandler:
     
     def Density_plot(self,data_Oxygen,data_Carbon=None):
         dens_plot(data_Oxygen,data_Carbon,self._dens_lower,self._dens_upper)
+
+
+
+
+
+
 
 
 
@@ -379,6 +397,28 @@ class WillardChandler:
     def HBondz_plot(self):
         hbondPlot(self._don,self._donx,self._acc,self._accx,self._hbond_lower,self._hbond_upper)
         
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

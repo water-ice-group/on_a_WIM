@@ -92,13 +92,7 @@ class AtomPos:
                 ocpos1_traj.append(ocpos)
             box_dim.append(self._u.dimensions)
         num_cores = int(multiprocessing.cpu_count()/2)
-        
-        print()
-        print(f'Number of cores: {num_cores}')
-        print()
-        print('Processing frames.')
         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(process_frame)(ts) for ts in self._u.trajectory[self._start:self._end])
-        print(opos_traj)
         return (opos_traj, h1_traj, h2_traj, cpos_traj, ocpos1_traj, ocpos2_traj, box_dim)
 
 

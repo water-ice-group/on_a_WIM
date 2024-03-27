@@ -27,23 +27,25 @@ class Density:
         pos = []
         wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
         wrap = np.array(wrap)
-        if cutoff==True:
+        if cutoff==False:
+            pos = wrap
+
+        elif cutoff==True:
             for i in range(len(wrap)):
                 if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
                     pos.append(wrap[i]) # append the unwrapped coordinates?
             pos = np.array(pos)
-        if cutoff==False:
-            pos = wrap
+
 
         #WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
         #WC_spline = WC_inter
 
         try:
-            dist_mat = distance_array(pos, WC_inter, box=boxdim) # should account for the wrapping. 
+            dist_mat = distance_array(pos, WC_inter, box=boxdim) 
         except:
-            dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim) # should account for the wrapping. 
-        proxim = np.min(dist_mat,axis=1) # obtain min for each row/atom. 
-        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))] # obtain splined interface coordinate closest to the ox positions. 
+            dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)        
+        proxim = np.min(dist_mat,axis=1)
+        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
         
         mag = []
         vect_list = []
@@ -54,6 +56,7 @@ class Density:
             vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
 
             scal_proj = np.dot(z_unit,vect)
+            
             mag.append(scal_proj)
             vect_list.append(vect)
                 
@@ -70,15 +73,6 @@ class Density:
             return np.array(vect_list)
         elif result == 'both':
             return (mag_prox,np.array(vect_list))
-
-# center = boxdim[:3]/2 
-# init = distances.apply_PBC((WC_spline[loc[i]] - pos[i]) + center,box=boxdim)
-# vect = init - center
-
-# surf_wrap_c = distances.apply_PBC(WC_spline[loc[i]]+center,box=boxdim)
-# pos_wrap_c  = distances.apply_PBC(pos[i]+center,box=boxdim)
-# vect = surf_wrap_c - pos_wrap_c
-
 
 def hydroniums(self,ox,hy,boxdim,cutoff=1.5):
 

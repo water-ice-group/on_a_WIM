@@ -42,11 +42,14 @@ class WC_Interface:
         '''Create the spatial positions extending the entirety of the box.'''
         '''Create once at beginning => Difficulty with variable box sizes (NPT).'''
 
-        sel = self._u.select_atoms('name H')
-
         grid = []
-        for i in np.linspace(0,self._u.dimensions[0],int(self._u.dimensions[0])):
-            for j in np.linspace(0,self._u.dimensions[1],int(self._u.dimensions[1])):
+        x = self._u.dimensions[0]
+        x_spacing = int(1*self._u.dimensions[0])
+        y = self._u.dimensions[1]
+        y_spacing = int(1*self._u.dimensions[1])
+
+        for i in np.linspace(0,x - (x/x_spacing),x_spacing):
+            for j in np.linspace(0,y - (y/y_spacing),y_spacing):
                 for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
                     grid.append([i,j,k])
 
@@ -61,7 +64,7 @@ class WC_Interface:
         density_field = []
         array = np.array(manifold)
         opos_wrap = distances.apply_PBC(opos,boxdim)
-        dist =  distance_array(array,opos_wrap,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
+        dist =  distance_array(array,opos,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
 
         dens_array = self.gaussian(dist) # return gaussian for each of the grid points (rows) calculated per atom (columns)
         density_field = np.sum(dens_array,axis=1) # sum the gaussians along the columns (atoms) for each row (grid point)
@@ -74,8 +77,9 @@ class WC_Interface:
         field to a particular critical value, chosen here to be half the 
         density of water.'''
         
+        
+        field = self.CG_field(grid,O_atoms,boxdim)
         manifold = grid
-        field = self.CG_field(manifold,O_atoms,boxdim)
         inter_tot = []
 
         for i in range(int(len(field)/self._gs)):
@@ -84,7 +88,8 @@ class WC_Interface:
             z_field = field[i*self._gs:(i+1)*self._gs]
 
             # extract corresponding z coordinates along point in x/y frame. 
-            z_pos = manifold[i*self._gs:(i+1)*self._gs] 
+            z_pos = manifold[i*self._gs:(i+1)*self._gs]
+
             
             
             diff = abs(z_field - crit)
