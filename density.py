@@ -42,51 +42,12 @@ class Density:
         ### OPTION 1 ###
         ######################################################################
 
-        try:
-            dist_mat = distance_array(pos, WC_inter, box=boxdim) 
-        except:
-            dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
-
-        normals = self.calculate_normal(WC_inter)
-
-        proxim = np.min(dist_mat,axis=1)
-        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
-        
-        mag = []
-        vect_list = []
-
-        for i in range(len(pos)):
-            
-            z_unit  = [0,0,1]
-            vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-            norm = normals[loc[i]]
-            norm[2] = -abs(norm[2])
-            prox = np.dot(vect,norm)
-            
-            mag.append(prox)
-            vect_list.append(vect)
-        
-            
-        if result == 'mag':
-            return mag # distance (magnitude denotes inside or outside slab)
-        elif result == 'vect':
-            return np.array(vect_list)
-        elif result == 'both':
-            return (mag,np.array(vect_list))
-        
-
-
-        ######################################################################
-        ### OPTION 2 ###
-        ######################################################################
-
-        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
-        # WC_inter = WC_spline
-
         # try:
         #     dist_mat = distance_array(pos, WC_inter, box=boxdim) 
         # except:
         #     dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
+
+        # normals = self.calculate_normal(WC_inter)
 
         # proxim = np.min(dist_mat,axis=1)
         # loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
@@ -98,25 +59,103 @@ class Density:
             
         #     z_unit  = [0,0,1]
         #     vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-        #     scal_proj = np.dot(z_unit,vect)
+        #     norm = normals[loc[i]]
+        #     norm[2] = -abs(norm[2])
+        #     prox = np.dot(vect,norm)
             
-        #     mag.append(scal_proj)
+        #     mag.append(prox)
         #     vect_list.append(vect)
-                
-        # mag_prox = [0]*len(mag)
-        # for i in range(len(mag)):
-        #     if mag[i] < 0:
-        #         mag_prox[i] = proxim[i]
-        #     else:
-        #         mag_prox[i] = -proxim[i]
+        
             
         # if result == 'mag':
-        #     return mag_prox # distance (magnitude denotes inside or outside slab)
+        #     return mag # distance (magnitude denotes inside or outside slab)
         # elif result == 'vect':
         #     return np.array(vect_list)
         # elif result == 'both':
-        #     return (mag_prox,np.array(vect_list))
+        #     return (mag,np.array(vect_list))
+        
 
+
+        ######################################################################
+        ### OPTION 2 ###
+        ######################################################################
+
+        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
+        # WC_inter = WC_spline
+
+        try:
+            dist_mat = distance_array(pos, WC_inter, box=boxdim) 
+        except:
+            dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
+
+        proxim = np.min(dist_mat,axis=1)
+        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
+        
+        mag = []
+        vect_list = []
+
+        for i in range(len(pos)):
+            
+            z_unit  = [0,0,1]
+            vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
+            scal_proj = np.dot(z_unit,vect)
+            
+            mag.append(scal_proj)
+            vect_list.append(vect)
+                
+        mag_prox = [0]*len(mag)
+        for i in range(len(mag)):
+            if mag[i] < 0:
+                mag_prox[i] = proxim[i]
+            else:
+                mag_prox[i] = -proxim[i]
+            
+        if result == 'mag':
+            return mag_prox # distance (magnitude denotes inside or outside slab)
+        elif result == 'vect':
+            return np.array(vect_list)
+        elif result == 'both':
+            return (mag_prox,np.array(vect_list))
+
+
+        ######################################################################
+        ### OPTION 3 ###
+        ######################################################################
+
+        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
+        # WC_inter = WC_spline
+
+        # try:
+        #     dist_mat = distance_array(pos, WC_inter, box=boxdim) 
+        # except:
+        #     dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
+
+        # normals = self.calculate_normal(WC_inter)
+
+        # proxim = np.min(dist_mat,axis=1)
+        # loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
+        
+        # mag = []
+        # vect_list = []
+
+        # for i in range(len(pos)):
+            
+        #     z_unit  = [0,0,1]
+        #     vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
+        #     norm = normals[loc[i]]
+        #     norm[2] = -abs(norm[2])
+        #     prox = np.dot(vect,norm)
+            
+        #     mag.append(prox)
+        #     vect_list.append(vect)
+        
+            
+        # if result == 'mag':
+        #     return mag # distance (magnitude denotes inside or outside slab)
+        # elif result == 'vect':
+        #     return np.array(vect_list)
+        # elif result == 'both':
+        #     return (mag,np.array(vect_list))
 
 
 

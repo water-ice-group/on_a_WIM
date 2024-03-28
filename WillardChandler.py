@@ -205,12 +205,23 @@ class WillardChandler:
             mol_dens = 44.0095 
             result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
 
-        save_dat = np.array([x_range[:-1],result_hist])
+        # remove points within surface cutoff error
+        no_surf_points = 20
+        wc_width = 20/no_surf_points # min distance between points on isosurface
+        x_out = x_range[:-1]
+        dump = []
+        for i in range(len(x_out)):
+            if (x_out[i] > -wc_width/2) and (x_out[i] < wc_width/2):
+                dump.append(i)
+        x_out = np.delete(x_out, dump)
+        result_hist = np.delete(result_hist, dump)
+
+        save_dat = np.array([x_out,result_hist])
         save_dat = save_dat.transpose()
         np.savetxt('./outputs/' + atom_type + '_dens.dat',save_dat)
         print('Done')
         print()
-        return (result_hist,x_range)
+        return (result_hist,x_out)
     
 
     def nrg_from_dens(self):
@@ -316,11 +327,25 @@ class WillardChandler:
             result = ori._getHistogram(dist_array,
                                     Theta_array,
                                     bins=bins,hist_range=[lower,upper])
-            np.savetxt(f'./outputs/orientation_{atomtype}.dat',result)
-            self._ori = result
+            x_out = result[:,0]
+            result_hist = result[:,1]
+
+            # remove points within surface cutoff error
+            no_surf_points = 20
+            wc_width = 20/no_surf_points # min distance between points on isosurface
+            dump = []
+            for i in range(len(x_out)):
+                if (x_out[i] > -wc_width/2) and (x_out[i] < wc_width/2):
+                    dump.append(i)
+            x_out = np.delete(x_out, dump)
+            result_hist = np.delete(result_hist, dump)
+            
+            save_dat = np.array([x_out,result_hist])
+            save_dat = save_dat.transpose()
+            np.savetxt(f'./outputs/orientation_{atomtype}.dat',save_dat)
             print('Done.')
             print()
-            return result
+            return save_dat
 
         elif histtype=='heatmap':
             hist,x_edges,y_edges = ori._getHeatMap(dist_array,
