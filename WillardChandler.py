@@ -206,8 +206,7 @@ class WillardChandler:
             result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
 
         # remove points within surface cutoff error
-        no_surf_points = 20
-        wc_width = 20/no_surf_points # min distance between points on isosurface
+        wc_width = 1
         x_out = x_range[:-1]
         dump = []
         for i in range(len(x_out)):
