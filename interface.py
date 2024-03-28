@@ -44,9 +44,9 @@ class WC_Interface:
 
         grid = []
         x = self._u.dimensions[0]
-        x_spacing = int(1*self._u.dimensions[0])
+        x_spacing = int(2*self._u.dimensions[0])
         y = self._u.dimensions[1]
-        y_spacing = int(1*self._u.dimensions[1])
+        y_spacing = int(2*self._u.dimensions[1])
 
         for i in np.linspace(0,x - (x/x_spacing),x_spacing):
             for j in np.linspace(0,y - (y/y_spacing),y_spacing):

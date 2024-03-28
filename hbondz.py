@@ -19,60 +19,51 @@ class Hbondz:
     '''calculate the number of H bonds in system as a function of 
     z-coordinate.'''
     
-    def __init__(self, universe, upper_z, **kwargs):
+    def __init__(self, universe, **kwargs):
 
         self._u = universe
-        self._uz = upper_z
+
 
 
         
         
-    def count(self, opos, h1pos, h2pos, wc, wrap_opos,lower,upper,bins):
+    def count(self, opos, h1pos, h2pos, wc, boxdim,lower,upper,bins):
         '''For each timeframe, determine the HBond count.'''
         
         # need to determine whether this is an instance of double counting or not. 
-        opos_dist = distance_array(opos,opos,box=self._u.dimensions) 
-        crit_1a,crit_1b = np.where( (opos_dist>0) & (opos_dist <= 3.3) )
+        opos_dist = distance_array(opos,opos,box=boxdim) 
+        crit_1a,crit_1b = np.where( (opos_dist>0) & (opos_dist <= 3.5) )
         
-        angle_array = calc_angles(opos[crit_1a],h1pos[crit_1a],opos[crit_1b],box=self._u.dimensions)
+        angle_array = calc_angles(opos[crit_1a],h1pos[crit_1a],opos[crit_1b],box=boxdim)
         angle_array = np.rad2deg(angle_array)
         
         crit2 = np.where(angle_array > 150.0)
         ox_idx = crit_1a[crit2]
         acc_idx = crit_1b[crit2]
-        list_1 = [wrap_opos[i] for i in ox_idx]
-        list_2 = [wrap_opos[i] for i in acc_idx]
+        list_1 = [opos[i] for i in ox_idx]
+        list_2 = [opos[i] for i in acc_idx]
 
         
-        angle_array = calc_angles(opos[crit_1a],h2pos[crit_1a],opos[crit_1b],box=self._u.dimensions)
+        angle_array = calc_angles(opos[crit_1a],h2pos[crit_1a],opos[crit_1b],box=boxdim)
         angle_array = np.rad2deg(angle_array)
 
         crit2 = np.where(angle_array > 150.0)
         ox_idx = crit_1a[crit2]
         acc_idx = crit_1b[crit2]
-        list_3 = [wrap_opos[i] for i in ox_idx]
-        list_4 = [wrap_opos[i] for i in acc_idx]
+        list_3 = [opos[i] for i in ox_idx]
+        list_4 = [opos[i] for i in acc_idx]
 
         O_hbond_list = list_1 + list_2 + list_3 + list_4
+        donors = list_1 + list_3
+        acceptors = list_2 + list_4
 
         dens = Density(self._u)
-        dist = dens.proximity(wc,O_hbond_list,upper=self._uz,result='mag')
-        dist_norm = dens.proximity(wc,wrap_opos,upper=self._uz,result='mag')
-        hist,xrange = np.histogram(dist,bins=bins,range=[lower,upper])
-        hist_norm,xrange = np.histogram(dist_norm,bins=bins,range=[lower,upper])
+        dist_tot = dens.proximity(wc,np.array(O_hbond_list),boxdim=boxdim,result='mag',cutoff=False)
+        dist_don = dens.proximity(wc,np.array(donors),boxdim=boxdim,result='mag',cutoff=False)
+        dist_acc = dens.proximity(wc,np.array(acceptors),boxdim=boxdim,result='mag',cutoff=False)
+        dist_norm = dens.proximity(wc,np.array(opos),boxdim=boxdim,result='mag',cutoff=False)
 
-        hist_final = []
-        for i in range(len(hist)):
-            if (hist_norm[i] != 0):
-                result = hist[i]/hist_norm[i]
-                hist_final.append(result)
-            else:
-                result = hist[i]
-                hist_final.append(result)
-
-        return hist_final
-
-
+        return (dist_tot,dist_don,dist_acc,dist_norm)
 
 
     #################################################################################
