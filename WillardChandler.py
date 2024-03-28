@@ -75,7 +75,7 @@ class WillardChandler:
         if new_inter==True: # generate new interfacial surface
 
             # no. of cores
-            num_cores = multiprocessing.cpu_count()//4
+            num_cores = multiprocessing.cpu_count()//2
             print()
             print(f'Number of cores: {num_cores}')
             print()

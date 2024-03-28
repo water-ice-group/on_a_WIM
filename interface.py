@@ -80,7 +80,7 @@ class WC_Interface:
         
         field = self.CG_field(grid,O_atoms,boxdim)
         manifold = grid
-        inter_tot = []
+        inter_tot = np.zeros(shape=(int(len(field)/self._gs),3))
 
         for i in range(int(len(field)/self._gs)):
 
@@ -91,11 +91,11 @@ class WC_Interface:
             z_pos = manifold[i*self._gs:(i+1)*self._gs]
 
             
-            
             diff = abs(z_field - crit)
             min_z = min(diff)
             min_idx = np.where(diff == min_z)[0][0]
-            inter_tot.append(z_pos[min_idx])
+
+            inter_tot[i] = z_pos[min_idx]
 
         return inter_tot
 
