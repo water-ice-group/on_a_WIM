@@ -75,7 +75,7 @@ class Hbondz:
         '''Function to parse through the HBonding results.
         Filter the time and the donor and acceptor positions.
         Input consists of indivudual time frames.'''
-        
+
         self._u.trajectory[hbond_result[0].astype(int)] # set the time frame
         time = hbond_result[0].astype(int) # append the time
         donor = self._u.atoms[hbond_result[1].astype(int)].position # append donor positions

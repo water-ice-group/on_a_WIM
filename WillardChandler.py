@@ -417,9 +417,9 @@ class WillardChandler:
                 out_don.append(hist_don[i]/hist_norm[i])
                 out_acc.append(hist_acc[i]/hist_norm[i])
             else:
-                out_tot.append(hist_tot[i])
-                out_don.append(hist_don[i])
-                out_acc.append(hist_acc[i])
+                out_tot.append(0)
+                out_don.append(0)
+                out_acc.append(0)
 
         # remove points within surface cutoff error
         # -------------------------------------------------------------
@@ -612,6 +612,38 @@ class WillardChandler:
         return (output,x_range[:-1])
 
     
+    # def surf_co2(self,property='rdf',min_cutoff=0,max_cutoff=4,bins=100,norm=True):
+
+    #     '''Calculate properties of CO2 molecules at the interface.
+
+    #     min_cutoff: minimum cutoff for locatinng CO2. 
+    #     max_cutoff: maximum cutoff for locating CO2.'''
+
+    #     itim = monolayer(self._u,self._start,self._end)
+    #     cluster_prop = monolayer_properties(self._u)
+
+    #     num_cores = int(multiprocessing.cpu_count())
+    #     if property=='rdf':
+    #         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
+    #         hist_input = np.concatenate(result).ravel()
+    #         density,x_range = np.histogram(hist_input,bins=bins,
+    #                         density=norm,range=(1,10))
+    #         #output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
+    #         output = [density[i]/(4*np.pi*x_range[i]**2) for i in range(len(density))] # convert to RDF
+    #         #output = density
+    #     elif property=='CO_angle':
+    #         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
+    #         hist_input = np.concatenate(result).ravel()
+    #         density,x_range = np.histogram(hist_input,bins=bins,
+    #                         density=norm,range=(1,180))
+    #         output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
+                
+    #     save_dat = np.array([x_range[:-1],output])
+    #     save_dat = save_dat.transpose()
+    #     np.savetxt(f'./outputs/surf_co2_{property}.dat',save_dat)
+    #     return (output,x_range[:-1])
+        
+
     def surf_co2(self,property='rdf',min_cutoff=0,max_cutoff=4,bins=100,norm=True):
 
         '''Calculate properties of CO2 molecules at the interface.
@@ -624,23 +656,25 @@ class WillardChandler:
 
         num_cores = int(multiprocessing.cpu_count())
         if property=='rdf':
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.surf_co2)(self._WC[i],self._cpos[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
                             density=norm,range=(1,10))
             output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
+            #output = [density[i]/(4*np.pi*x_range[i]**2) for i in range(len(density))] # convert to RDF
+            #output = density
         elif property=='CO_angle':
             result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
-                            density=norm,range=(1,180))
+                            density=norm,range=(5,175))
             output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
                 
         save_dat = np.array([x_range[:-1],output])
         save_dat = save_dat.transpose()
         np.savetxt(f'./outputs/surf_co2_{property}.dat',save_dat)
         return (output,x_range[:-1])
-        
+
 
     
     # def Hbond_prop(self,bins=100):
