@@ -6,6 +6,7 @@ import numpy as np
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.lib import distances
 from scipy import interpolate
+from scipy.interpolate import griddata
 from interface import WC_Interface
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
@@ -42,51 +43,12 @@ class Density:
         ### OPTION 1 ###
         ######################################################################
 
-        # try:
-        #     dist_mat = distance_array(pos, WC_inter, box=boxdim) 
-        # except:
-        #     dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
-
-        # normals = self.calculate_normal(WC_inter)
-
-        # proxim = np.min(dist_mat,axis=1)
-        # loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
-        
-        # mag = []
-        # vect_list = []
-
-        # for i in range(len(pos)):
-            
-        #     z_unit  = [0,0,1]
-        #     vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-        #     norm = normals[loc[i]]
-        #     norm[2] = -abs(norm[2])
-        #     prox = np.dot(vect,norm)
-            
-        #     mag.append(prox)
-        #     vect_list.append(vect)
-        
-            
-        # if result == 'mag':
-        #     return mag # distance (magnitude denotes inside or outside slab)
-        # elif result == 'vect':
-        #     return np.array(vect_list)
-        # elif result == 'both':
-        #     return (mag,np.array(vect_list))
-        
-
-
-        ######################################################################
-        ### OPTION 2 ###
-        ######################################################################
-
-        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
-        # WC_inter = WC_spline
-
         try:
             dist_mat = distance_array(pos, WC_inter, box=boxdim) 
         except:
             dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
+
+        normals = self.calculate_normal(WC_inter)
 
         proxim = np.min(dist_mat,axis=1)
         loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
@@ -98,24 +60,63 @@ class Density:
             
             z_unit  = [0,0,1]
             vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-            scal_proj = np.dot(z_unit,vect)
+            norm = normals[loc[i]]
+            norm[2] = -abs(norm[2])
+            prox = np.dot(vect,norm)
             
-            mag.append(scal_proj)
+            mag.append(prox)
             vect_list.append(vect)
-                
-        mag_prox = [0]*len(mag)
-        for i in range(len(mag)):
-            if mag[i] < 0:
-                mag_prox[i] = proxim[i]
-            else:
-                mag_prox[i] = -proxim[i]
+        
             
         if result == 'mag':
-            return mag_prox # distance (magnitude denotes inside or outside slab)
+            return mag # distance (magnitude denotes inside or outside slab)
         elif result == 'vect':
             return np.array(vect_list)
         elif result == 'both':
-            return (mag_prox,np.array(vect_list))
+            return (mag,np.array(vect_list))
+        
+
+
+        ######################################################################
+        ### OPTION 2 ###
+        ######################################################################
+
+        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
+        # WC_inter = WC_spline
+
+        # try:
+        #     dist_mat = distance_array(pos, WC_inter, box=boxdim) 
+        # except:
+        #     dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
+
+        # proxim = np.min(dist_mat,axis=1)
+        # loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
+        
+        # mag = []
+        # vect_list = []
+
+        # for i in range(len(pos)):
+            
+        #     z_unit  = [0,0,1]
+        #     vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
+        #     scal_proj = np.dot(z_unit,vect)
+            
+        #     mag.append(scal_proj)
+        #     vect_list.append(vect)
+                
+        # mag_prox = [0]*len(mag)
+        # for i in range(len(mag)):
+        #     if mag[i] < 0:
+        #         mag_prox[i] = proxim[i]
+        #     else:
+        #         mag_prox[i] = -proxim[i]
+            
+        # if result == 'mag':
+        #     return mag_prox # distance (magnitude denotes inside or outside slab)
+        # elif result == 'vect':
+        #     return np.array(vect_list)
+        # elif result == 'both':
+        #     return (mag_prox,np.array(vect_list))
 
 
         ######################################################################
@@ -158,29 +159,30 @@ class Density:
         #     return (mag,np.array(vect_list))
 
 
-
     def calculate_normal(self,grid):
-        """
-        Calculate the normal vector at each grid point on a 2D surface in 3D space.
-        
-        Parameters:
-            grid (ndarray): 2D grid representing the interface in 3D space.
-            
-        Returns:
-            ndarray: Array containing the normal vector at each grid point.
-        """
-        # Calculate differences along the x and y axes
-        dx = np.gradient(grid, axis=0)
-        dy = np.gradient(grid, axis=1)
-        
-        # Compute the normal vector using cross product
-        normals = np.cross(dx, dy, axisa=-1, axisb=-1)
+        # Assuming the grid is sorted in a way that each row represents a plane in the z-axis
+        # Reshape the grid to separate x, y, and z coordinates
+        x = grid[:, 0]
+        y = grid[:, 1]
+        z = grid[:, 2]
+
+        # Calculate gradients along x and y axes using central differences
+        dx = np.gradient(x, axis=0)
+        dy = np.gradient(y, axis=0)
+
+        # Initialize an array to store normal vectors
+        normals = np.zeros_like(grid)
+
+        # Calculate the normal vectors using cross product
+        normals[:, 0] = -dy  # x component of the normal vector
+        normals[:, 1] = dx  # y component of the normal vector
+        normals[:, 2] = z  # z component of the normal vector
 
         # Normalize the normal vectors
-        normals_magnitude = np.linalg.norm(normals, axis=-1, keepdims=True)
-        normals_normalized = normals / normals_magnitude
-
-        return normals_normalized
+        magnitudes = np.sqrt(np.sum(normals**2, axis=1))
+        normals /= magnitudes[:, np.newaxis]
+        #print(normals[100])
+        return normals
 
 
 def hydroniums(self,ox,hy,boxdim,cutoff=1.5):
