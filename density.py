@@ -158,31 +158,62 @@ class Density:
         # elif result == 'both':
         #     return (mag,np.array(vect_list))
 
-
     def calculate_normal(self,grid):
-        # Assuming the grid is sorted in a way that each row represents a plane in the z-axis
-        # Reshape the grid to separate x, y, and z coordinates
+
         x = grid[:, 0]
         y = grid[:, 1]
         z = grid[:, 2]
 
-        # Calculate gradients along x and y axes using central differences
-        dx = np.gradient(x, axis=0)
-        dy = np.gradient(y, axis=0)
+        # Calculate the periodic virtual grid
+        x_extended = np.concatenate((x[-1:], x, x[:1]))
+        y_extended = np.concatenate((y[-1:], y, y[:1]))
+        z_extended = np.concatenate((z[-1:], z, z[:1]))
+
+        # Calculate gradients along x and y axes using central differences on the extended grid
+        dx = np.gradient(x_extended)
+        dy = np.gradient(y_extended)
 
         # Initialize an array to store normal vectors
         normals = np.zeros_like(grid)
 
         # Calculate the normal vectors using cross product
-        normals[:, 0] = -dy  # x component of the normal vector
-        normals[:, 1] = dx  # y component of the normal vector
-        normals[:, 2] = z  # z component of the normal vector
+        normals[:, 0] = -dy[1:-1]  # x component of the normal vector
+        normals[:, 1] = dx[1:-1]   # y component of the normal vector
+        normals[:, 2] = z           # z component of the normal vector
 
         # Normalize the normal vectors
         magnitudes = np.sqrt(np.sum(normals**2, axis=1))
         normals /= magnitudes[:, np.newaxis]
-        #print(normals[100])
+
+        print(f'Start normal: {normals[0]}')
+        print(f'End normal: {normals[-1]}')
+
         return normals
+
+    # def calculate_normal(self,grid):
+    #     # Assuming the grid is sorted in a way that each row represents a plane in the z-axis
+    #     # Reshape the grid to separate x, y, and z coordinates
+    #     x = grid[:, 0]
+    #     y = grid[:, 1]
+    #     z = grid[:, 2]
+
+    #     # Calculate gradients along x and y axes using central differences
+    #     dx = np.gradient(x, axis=0)
+    #     dy = np.gradient(y, axis=0)
+
+    #     # Initialize an array to store normal vectors
+    #     normals = np.zeros_like(grid)
+
+    #     # Calculate the normal vectors using cross product
+    #     normals[:, 0] = -dy  # x component of the normal vector
+    #     normals[:, 1] = dx  # y component of the normal vector
+    #     normals[:, 2] = z  # z component of the normal vector
+
+    #     # Normalize the normal vectors
+    #     magnitudes = np.sqrt(np.sum(normals**2, axis=1))
+    #     normals /= magnitudes[:, np.newaxis]
+    #     print(normals[-1])
+    #     return normals
 
 
 def hydroniums(self,ox,hy,boxdim,cutoff=1.5):

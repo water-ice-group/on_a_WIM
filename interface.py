@@ -48,10 +48,15 @@ class WC_Interface:
         y = self._u.dimensions[1]
         y_spacing = int(2*self._u.dimensions[1])
 
-        for i in np.linspace(0,x - (x/x_spacing),x_spacing):
-            for j in np.linspace(0,y - (y/y_spacing),y_spacing):
+        for i in np.linspace(0,x,x_spacing):
+            for j in np.linspace(0,y,y_spacing):
                 for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
                     grid.append([i,j,k])
+
+        # for i in np.linspace(0,x - (x/x_spacing),x_spacing):
+        #     for j in np.linspace(0,y - (y/y_spacing),y_spacing):
+        #         for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
+        #             grid.append([i,j,k])
 
         grid = np.array(grid)
         
