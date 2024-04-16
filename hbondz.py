@@ -19,9 +19,10 @@ class Hbondz:
     '''calculate the number of H bonds in system as a function of 
     z-coordinate.'''
     
-    def __init__(self, universe, **kwargs):
+    def __init__(self, universe, uz, **kwargs):
 
         self._u = universe
+        self._uz = uz
 
 
 
@@ -113,7 +114,9 @@ class Hbondz:
         steps = [i[0] for i in hbonds.results.hbonds] # will feature multiple occurences of the same step
         tot_steps = int(stop - start)
         data = dict()
-        for i in range(tot_steps):
+
+        range_t = range(int(start),int(stop))
+        for i in range_t:
             data[int(i)] = [[],[]]
         self._data = data
 
@@ -131,8 +134,8 @@ class Hbondz:
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
-        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][0]),boxdim[i-1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][1]),boxdim[i-1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][0]),boxdim[i-1],upper=self._uz) for i in tqdm(range_t)) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][1]),boxdim[i-1],upper=self._uz) for i in tqdm(range_t)) 
 
         dist_don = np.concatenate(result_don).ravel()
         dist_acc = np.concatenate(result_acc).ravel()
@@ -142,7 +145,7 @@ class Hbondz:
         sel = self._u.select_atoms('name OW OC')
         for ts in self._u.trajectory[:stop]:
             ox_pos.append(sel.positions)
-        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range(0,tot_steps)))
+        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range_t))
         bkg_dist = np.concatenate(bkg_dens).ravel()
 
         print('Binning.')
