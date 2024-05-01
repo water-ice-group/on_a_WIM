@@ -102,7 +102,7 @@ class Hbondz:
         hbonds = HydrogenBondAnalysis(universe=self._u,
                                       donors_sel='name OW OC',
                                       hydrogens_sel='name H',
-                                      acceptors_sel='name OW OC',
+                                      acceptors_sel='name OW',
                                       d_a_cutoff=3.5,
                                       d_h_a_angle_cutoff=140)
         if start == None:
@@ -169,15 +169,25 @@ class Hbondz:
         print('Binning.')
         hist_don,don_range = np.histogram(dist_don,bins=bins,range=[lower,upper])
         hist_acc,acc_range = np.histogram(dist_acc,bins=bins,range=[lower,upper])
-        hist_bkg,bkg_range = np.histogram(bkg_dist,bins=bins,range=[lower,upper])
-        hist_don = [(hist_don[i]/hist_bkg[i]) for i in range(len(hist_don))] # need to divide by a total number of steps???
-        hist_acc = [(hist_acc[i]/hist_bkg[i]) for i in range(len(hist_acc))] # need to divide by a total number of steps???
+        hist_bkg,bkg_range = np.histogram(dist_bkg,bins=bins,range=[lower,upper])
+        
+
+        out_don = []
+        out_acc = []
+        for i in range(len(hist_don)):
+            print(hist_bkg[i])
+            if hist_bkg[i] < 2:
+                out_don.append(0)
+                out_acc.append(0)
+            else:
+                out_don.append(hist_don[i]/hist_bkg[i])
+                out_acc.append(hist_acc[i]/hist_bkg[i])
         don_range = 0.5*(don_range[1:]+don_range[:-1])
         acc_range = 0.5*(acc_range[1:]+acc_range[:-1])
 
-        don_dat = np.array([don_range,hist_don])
+        don_dat = np.array([don_range,out_don])
         don_dat = don_dat.transpose()
-        acc_dat = np.array([acc_range,hist_acc])
+        acc_dat = np.array([acc_range,out_acc])
         acc_dat = acc_dat.transpose()
         np.savetxt('./outputs/donor.dat',don_dat)
         np.savetxt('./outputs/acceptor.dat',acc_dat)
