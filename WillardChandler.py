@@ -672,7 +672,7 @@ class WillardChandler:
                 
         save_dat = np.array([x_range[:-1],output])
         save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/surf_co2_{property}.dat',save_dat)
+        np.savetxt(f'./outputs/surf_co2_{property}_{max_cutoff}.dat',save_dat)
         return (output,x_range[:-1])
 
 

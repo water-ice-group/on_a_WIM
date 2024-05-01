@@ -88,7 +88,7 @@ class Hbondz:
         hbonds = HydrogenBondAnalysis(universe=self._u,
                                       donors_sel='name OW OC',
                                       hydrogens_sel='name H',
-                                      acceptors_sel='name OW OC',
+                                      acceptors_sel='name OW',
                                       d_a_cutoff=3.5,
                                       d_h_a_angle_cutoff=140)
         if start == None:
@@ -117,7 +117,7 @@ class Hbondz:
 
         range_t = range(int(start),int(stop))
         for i in range_t:
-            data[int(i)] = [[],[]]
+            data[int(i)] = [[],[],[]]
         self._data = data
 
         # parse through frames to accquire donors and acceptors. 
@@ -126,40 +126,55 @@ class Hbondz:
         result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(hbonds.results.hbonds[i]) for i in tqdm(range(len(hbonds.results.hbonds)))) 
         
         time = []
+        bkg  = []
         for i in range(len(result)):
             time.append(result[i][0])
             data[int(result[i][0])][0].append(result[i][1])
             data[int(result[i][0])][1].append(result[i][2])
+            data[int(result[i][0])][2].append(result[i][1].tolist())
+            data[int(result[i][0])][2].append(result[i][2].tolist())
+        
+        # extract the unique values from the background
+        bkg = []
+        for i in range_t:
+            dat = np.array(data[i][2])
+            result = np.unique(dat,axis=0)
+            bkg.append(result)
+
 
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
-        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][0]),boxdim[i-1],upper=self._uz) for i in tqdm(range_t)) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][1]),boxdim[i-1],upper=self._uz) for i in tqdm(range_t)) 
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(data[i][0]),boxdim[i],upper=self._uz) for i in tqdm(range_t)) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(data[i][1]),boxdim[i],upper=self._uz) for i in tqdm(range_t))
+        result_bkg = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],bkg[i],boxdim[i],upper=self._uz) for i in tqdm(range_t))
 
         dist_don = np.concatenate(result_don).ravel()
         dist_acc = np.concatenate(result_acc).ravel()
-
-        print('Acquiring background density.')
-        ox_pos = []
-        sel = self._u.select_atoms('name OW OC')
-        for ts in self._u.trajectory[:stop]:
-            ox_pos.append(sel.positions)
-        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range_t))
-        bkg_dist = np.concatenate(bkg_dens).ravel()
+        dist_bkg = np.concatenate(result_bkg).ravel()
 
         print('Binning.')
         hist_don,don_range = np.histogram(dist_don,bins=bins,range=[lower,upper])
         hist_acc,acc_range = np.histogram(dist_acc,bins=bins,range=[lower,upper])
-        hist_bkg,bkg_range = np.histogram(bkg_dist,bins=bins,range=[lower,upper])
-        hist_don = [(hist_don[i]/hist_bkg[i]) for i in range(len(hist_don))] # need to divide by a total number of steps???
-        hist_acc = [(hist_acc[i]/hist_bkg[i]) for i in range(len(hist_acc))] # need to divide by a total number of steps???
+        hist_bkg,bkg_range = np.histogram(dist_bkg,bins=bins,range=[lower,upper])
+        
+
+        out_don = []
+        out_acc = []
+        for i in range(len(hist_don)):
+            print(hist_bkg[i])
+            if hist_bkg[i] < 2:
+                out_don.append(0)
+                out_acc.append(0)
+            else:
+                out_don.append(hist_don[i]/hist_bkg[i])
+                out_acc.append(hist_acc[i]/hist_bkg[i])
         don_range = 0.5*(don_range[1:]+don_range[:-1])
         acc_range = 0.5*(acc_range[1:]+acc_range[:-1])
 
-        don_dat = np.array([don_range,hist_don])
+        don_dat = np.array([don_range,out_don])
         don_dat = don_dat.transpose()
-        acc_dat = np.array([acc_range,hist_acc])
+        acc_dat = np.array([acc_range,out_acc])
         acc_dat = acc_dat.transpose()
         np.savetxt('./outputs/donor.dat',don_dat)
         np.savetxt('./outputs/acceptor.dat',acc_dat)
