@@ -185,8 +185,8 @@ class Density:
         magnitudes = np.sqrt(np.sum(normals**2, axis=1))
         normals /= magnitudes[:, np.newaxis]
 
-        print(f'Start normal: {normals[0]}')
-        print(f'End normal: {normals[-1]}')
+        #print(f'Start normal: {normals[0]}')
+        #print(f'End normal: {normals[-1]}')
 
         return normals
 

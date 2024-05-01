@@ -19,9 +19,10 @@ class Hbondz:
     '''calculate the number of H bonds in system as a function of 
     z-coordinate.'''
     
-    def __init__(self, universe, **kwargs):
+    def __init__(self, universe, uz, **kwargs):
 
         self._u = universe
+        self._uz = uz
 
 
 
@@ -71,16 +72,30 @@ class Hbondz:
     #################################################################################
 
 
-    def parse_frames(self,hbond_result):
+    def parse_frames(self,don,acc,time):
         '''Function to parse through the HBonding results.
         Filter the time and the donor and acceptor positions.
         Input consists of indivudual time frames.'''
+        #print(don[0],acc[0],time)
 
-        self._u.trajectory[hbond_result[0].astype(int)] # set the time frame
-        time = hbond_result[0].astype(int) # append the time
-        donor = self._u.atoms[hbond_result[1].astype(int)].position # append donor positions
-        acceptor = self._u.atoms[hbond_result[3].astype(int)].position # append acceptor positions
+        self._u.trajectory[time.astype(int)]
+        donor = self._u.atoms[don].positions
+        acceptor = self._u.atoms[acc].positions
+        # donor = [self._u.atoms[int(i)].position for i in don]
+        # acceptor = [self._u.atoms[int(i)].position for i in acc]
+
         return (time,donor,acceptor)
+
+
+        # while counter < time_dat[1]:
+        #     self._u.trajectory[hbond_result[counter].astype(int)] # set the time frame
+        #     time = hbond_result[0].astype(int) # append the time
+        #     donor = self._u.atoms[hbond_result[1].astype(int)].position # append donor positions
+        #     acceptor = self._u.atoms[hbond_result[3].astype(int)].position # append acceptor positions
+        # return (time,donor,acceptor)
+
+
+
 
 
     def hbond_analysis(self,wc,lower,upper,start,stop,boxdim,bins=250):
@@ -96,43 +111,49 @@ class Hbondz:
             stop = int(len(self._u.trajectory)-1)
         hbonds.run(start=start,stop=stop)
 
+        # create dictionary to store results
+        tot_steps = int(stop - start)
+        data = dict()
+        for i in range(int(start),int(stop+1)):
+            data[int(i)] = [[],[]]
+        self._data = data
+
         # hbonds will return results of the following form
         # [frame, donor_ID, H_ID, acceptor_ID, bond_distance, angle]
 
-
+        # sort the results by unique times. 
         output_arr = np.array(hbonds.results.hbonds)
         time = output_arr[:,0]
-        don_id = output_arr[:,1]
-        acc_id = output_arr[:,3]
-        counts = hbonds.times
+        don_id = output_arr[:,1].astype(int)
+        acc_id = output_arr[:,3].astype(int)
 
-        print(start)
-        print(stop)
+        unique_time, counts = np.unique(time, return_counts=True) # extract uniques time frames and count them.
+        cumulative_counts = np.cumsum(counts)
+        cumulative_counts = np.insert(cumulative_counts, 0, 0)
+        
+        don_sort = [don_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(tot_steps)]
+        acc_sort = [acc_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(tot_steps)]
 
-        # create dictionary to store results
-        steps = [i[0] for i in hbonds.results.hbonds] # will feature multiple occurences of the same step
-        tot_steps = int(stop - start)
-        data = dict()
-        for i in range(tot_steps):
-            data[int(i)] = [[],[]]
-        self._data = data
 
         # parse through frames to accquire donors and acceptors. 
         print('Collecting H Bond data.')
         num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(hbonds.results.hbonds[i]) for i in tqdm(range(len(hbonds.results.hbonds)))) 
-        
-        time = []
-        for i in range(len(result)):
-            time.append(result[i][0])
-            data[int(result[i][0])][0].append(result[i][1])
-            data[int(result[i][0])][1].append(result[i][2])
+        result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(don_sort[i],acc_sort[i],unique_time[i]) for i in tqdm(range(tot_steps))) 
+
+        # print(result[0][1][0])
+        # print(result[0][2][0])
+
+        # time = []
+        # for i in range(len(result)):
+        #     time.append(result[i][0])
+        #     data[int(result[i][0])][0].append(result[i][1])
+        #     data[int(result[i][0])][1].append(result[i][2])
 
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
-        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][0]),boxdim[i-1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i-1],np.array(data[i][1]),boxdim[i-1],upper=self._uz) for i in tqdm(range(1,tot_steps+1))) 
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][1]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][2]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
 
         dist_don = np.concatenate(result_don).ravel()
         dist_acc = np.concatenate(result_acc).ravel()
@@ -142,7 +163,7 @@ class Hbondz:
         sel = self._u.select_atoms('name OW OC')
         for ts in self._u.trajectory[:stop]:
             ox_pos.append(sel.positions)
-        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range(0,tot_steps)))
+        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
         bkg_dist = np.concatenate(bkg_dens).ravel()
 
         print('Binning.')
