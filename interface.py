@@ -17,11 +17,12 @@ class WC_Interface:
     '''Module for generating a Willard-Chandler interface and using this
     interface to calculate properties such as density and orientation.'''
 
-    def __init__(self, universe, grid_spacing=100, **kwargs):
+    def __init__(self, universe, grid_spacing=100, lower_z=10, upper_z=30, **kwargs):
         
         self._u = universe          # load universe
         self._gs = grid_spacing     # load the grid spacing along z
-
+        self._lz = lower_z          # load the lower bounds for interface detection. 
+        self._uz = upper_z          # load the upper bounds for interface detection.
     
 
     ##########################################################################
@@ -43,15 +44,19 @@ class WC_Interface:
 
         grid = []
         x = self._u.dimensions[0]
-        x_spacing = int(1*self._u.dimensions[0])
+        x_spacing = int(2*self._u.dimensions[0])
         y = self._u.dimensions[1]
-        y_spacing = int(1*self._u.dimensions[1])
-        z = self._u.dimensions[2]
+        y_spacing = int(2*self._u.dimensions[1])
 
         for i in np.linspace(0,x,x_spacing):
             for j in np.linspace(0,y,y_spacing):
-                for k in np.linspace(0,z,self._gs): # need to include 5A buffer to prevent zero point interference (?)
+                for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
                     grid.append([i,j,k])
+
+        # for i in np.linspace(0,x - (x/x_spacing),x_spacing):
+        #     for j in np.linspace(0,y - (y/y_spacing),y_spacing):
+        #         for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
+        #             grid.append([i,j,k])
 
         grid = np.array(grid)
         
@@ -63,6 +68,7 @@ class WC_Interface:
 
         density_field = []
         array = np.array(manifold)
+        opos_wrap = distances.apply_PBC(opos,boxdim)
         dist =  distance_array(array,opos,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
 
         dens_array = self.gaussian(dist) # return gaussian for each of the grid points (rows) calculated per atom (columns)
@@ -74,13 +80,12 @@ class WC_Interface:
     def criteria(self,O_atoms,grid,boxdim=None,crit=0.016):
         '''Identify the quasi-2D surface by equating the points in the density
         field to a particular critical value, chosen here to be half the 
-        density of water. Pass in a single frame.'''
+        density of water.'''
         
         
         field = self.CG_field(grid,O_atoms,boxdim)
         manifold = grid
-        inter_lower = []
-        inter_upper = []
+        inter_tot = np.zeros(shape=(int(len(field)/self._gs),3))
 
         for i in range(int(len(field)/self._gs)):
 
@@ -90,26 +95,14 @@ class WC_Interface:
             # extract corresponding z coordinates along point in x/y frame. 
             z_pos = manifold[i*self._gs:(i+1)*self._gs]
 
-            div = len(z_field)//2
-
-            lower_field = z_field[:div]
-            upper_field = z_field[div:]
-            lower_pos = z_pos[:div]
-            upper_pos = z_pos[div:] 
-
-            diff_lower = abs(lower_field - crit)
-            min_z = min(diff_lower)
-            min_idx = np.where(diff_lower == min_z)[0][0]
-            inter_lower.append(lower_pos[min_idx])
-
-
-            diff_upper = abs(upper_field - crit)
-            min_z = min(diff_upper)
-            min_idx = np.where(diff_upper == min_z)[0][0]
-            inter_upper.append(upper_pos[min_idx])
             
-        inter = inter_lower + inter_upper
-        return inter
+            diff = abs(z_field - crit)
+            min_z = min(diff)
+            min_idx = np.where(diff == min_z)[0][0]
+
+            inter_tot[i] = z_pos[min_idx]
+
+        return inter_tot
 
 
     ##########################################################################
@@ -177,7 +170,7 @@ class WC_Interface:
         no_points = len(WC[0])
         sol = mda.Universe.empty(no_points,trajectory=True)
         sol.add_TopologyAttr('name', ['S']*no_points)
-        print(no_points)
+    
         coordinates = np.array(WC)
 
         sol.load_new(coordinates)
@@ -191,7 +184,7 @@ class WC_Interface:
         sel = wc_univ.select_atoms('all')
 
         with mda.Writer("./outputs/ref_inter.pdb",len(WC[0])) as W:
-            sel.dimensions = [self._u.dimensions[0], self._u.dimensions[1], self._u.dimensions[2], 90.0, 90.0, 90.0]
+            sel.dimensions = [self._u.dimensions[0], self._u.dimensions[1], self._uz, 90.0, 90.0, 90.0]
             W.write(sel)
 
         with mda.Writer("./outputs/inter.dcd",len(WC[0])) as W:

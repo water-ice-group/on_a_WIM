@@ -78,11 +78,6 @@ class AtomPos:
                                     box=self._u.dimensions)
 
             try: 
-                cpos = self._u.select_atoms('name' + ' C').positions
-                ocpos = self._u.select_atoms('name' + ' OC').positions
-                cpos_traj.append(cpos)
-                ocpos1_traj.append(ocpos)
-            except:
                 idx = np.argpartition(c_oc_dist, 3, axis=-1)
                 cpos = self._u.select_atoms('name' + ' C').positions
                 oc1pos = self._u.select_atoms('name' + ' OC')[idx[:, 0]].positions
@@ -90,7 +85,11 @@ class AtomPos:
                 cpos_traj.append(cpos)
                 ocpos1_traj.append(oc1pos)
                 ocpos2_traj.append(oc2pos)
-                
+            except:  # allow exception for single co2 molecule (partitioning breaks for this.)
+                cpos = self._u.select_atoms('name' + ' C').positions
+                ocpos = self._u.select_atoms('name' + ' OC').positions
+                cpos_traj.append(cpos)
+                ocpos1_traj.append(ocpos)
             box_dim.append(self._u.dimensions)
 
         return (opos_traj, h1_traj, h2_traj, cpos_traj, ocpos1_traj, ocpos2_traj, box_dim)

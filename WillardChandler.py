@@ -38,10 +38,12 @@ class WillardChandler:
     Raises:
         ValueError: If the specified atom type is not supported."""
 
-    def __init__(self, universe, startstep=None,endstep=None):    
+    def __init__(self, universe, lower_z, upper_z, startstep=None,endstep=None):    
         self._u = universe
         self._start = startstep
         self._end = endstep
+        self._lz = lower_z
+        self._uz = upper_z
 
 
 
@@ -77,7 +79,7 @@ class WillardChandler:
             opos_traj = self._opos
 
 
-        inter = WC_Interface(self._u,grid)
+        inter = WC_Interface(self._u,grid,self._lz,self._uz)
         
 
         if new_inter==True: # generate new interfacial surface
@@ -113,7 +115,7 @@ class WillardChandler:
         
     def surface_stats(self,bins=100): # states on the deformation of the interface
 
-        inter = WC_Interface(self._u,self._grid)
+        inter = WC_Interface(self._u,self._grid,self._lz,self._uz)
 
         num_cores = multiprocessing.cpu_count()
         print('Getting surface stats ...')
@@ -178,7 +180,7 @@ class WillardChandler:
         print(f'Obtaining {atom_type} density.')
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i]) for i in tqdm(range(len(traj)))) # parse through frames
+        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj)))) # parse through frames
         self._dens_result = result
         print('Generating histogram(s)')
 
@@ -190,12 +192,23 @@ class WillardChandler:
         hist_range = upper - lower
         if atom_type == 'OW':
             mol_dens = 18.01528
-            result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
+            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
         elif atom_type == 'C':
             mol_dens = 44.0095 
-            result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
+            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
 
+
+        # remove points within surface cutoff error
+        # -------------------------------------------------------------
+        #wc_width = 1
         x_out = x_range[:-1]
+        # dump = []
+        # for i in range(len(x_out)):
+        #     if (x_out[i] > -wc_width/2) and (x_out[i] < wc_width/2):
+        #         dump.append(i)
+        # x_out = np.delete(x_out, dump)
+        # result_hist = np.delete(result_hist, dump)
+        # # -------------------------------------------------------------
 
         save_dat = np.array([x_out,result_hist])
         save_dat = save_dat.transpose()
@@ -437,7 +450,7 @@ class WillardChandler:
         # return (out_tot,out_don,out_acc,x_out)
         
 
-        counter = Hbondz(self._u)
+        counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
         self._hbond_upper = upper
 

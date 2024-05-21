@@ -19,9 +19,10 @@ class Hbondz:
     '''calculate the number of H bonds in system as a function of 
     z-coordinate.'''
     
-    def __init__(self, universe, **kwargs):
+    def __init__(self, universe, uz, **kwargs):
 
         self._u = universe
+        self._uz = uz
 
 
 
@@ -151,8 +152,8 @@ class Hbondz:
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
-        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][1]),boxdim[i]) for i in tqdm(range(tot_steps))) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][2]),boxdim[i]) for i in tqdm(range(tot_steps))) 
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][1]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][2]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
 
         dist_don = np.concatenate(result_don).ravel()
         dist_acc = np.concatenate(result_acc).ravel()
@@ -162,7 +163,7 @@ class Hbondz:
         sel = self._u.select_atoms('name OW OC')
         for ts in self._u.trajectory[:stop]:
             ox_pos.append(sel.positions)
-        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i]) for i in tqdm(range(tot_steps)))
+        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
         bkg_dist = np.concatenate(bkg_dens).ravel()
 
         print('Binning.')
