@@ -169,7 +169,7 @@ class Hbondz:
         print('Binning.')
         hist_don,don_range = np.histogram(dist_don,bins=bins,range=[lower,upper])
         hist_acc,acc_range = np.histogram(dist_acc,bins=bins,range=[lower,upper])
-        hist_bkg,bkg_range = np.histogram(dist_bkg,bins=bins,range=[lower,upper])
+        hist_bkg,bkg_range = np.histogram(bkg_dist,bins=bins,range=[lower,upper])
         
 
         out_don = []

@@ -40,7 +40,7 @@ class Density:
 
 
         ######################################################################
-        ### OPTION 1 ###
+        ######### Obtain the proximity of molecules to an interface ##########
         ######################################################################
 
         try:
@@ -58,10 +58,9 @@ class Density:
 
         for i in range(len(pos)):
             
-            z_unit  = [0,0,1]
             vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
             norm = normals[loc[i]]
-            norm[2] = -abs(norm[2])
+            #norm[2] = -abs(norm[2])
             prox = np.dot(vect,norm)
             
             mag.append(prox)
@@ -76,87 +75,6 @@ class Density:
             return (mag,np.array(vect_list))
         
 
-
-        ######################################################################
-        ### OPTION 2 ###
-        ######################################################################
-
-        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
-        # WC_inter = WC_spline
-
-        # try:
-        #     dist_mat = distance_array(pos, WC_inter, box=boxdim) 
-        # except:
-        #     dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
-
-        # proxim = np.min(dist_mat,axis=1)
-        # loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
-        
-        # mag = []
-        # vect_list = []
-
-        # for i in range(len(pos)):
-            
-        #     z_unit  = [0,0,1]
-        #     vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-        #     scal_proj = np.dot(z_unit,vect)
-            
-        #     mag.append(scal_proj)
-        #     vect_list.append(vect)
-                
-        # mag_prox = [0]*len(mag)
-        # for i in range(len(mag)):
-        #     if mag[i] < 0:
-        #         mag_prox[i] = proxim[i]
-        #     else:
-        #         mag_prox[i] = -proxim[i]
-            
-        # if result == 'mag':
-        #     return mag_prox # distance (magnitude denotes inside or outside slab)
-        # elif result == 'vect':
-        #     return np.array(vect_list)
-        # elif result == 'both':
-        #     return (mag_prox,np.array(vect_list))
-
-
-        ######################################################################
-        ### OPTION 3 ###
-        ######################################################################
-
-        # WC_spline = np.array(WC_Interface(self._u).spline(WC_inter))  # obtain finer grid for better resolution of distances. 
-        # WC_inter = WC_spline
-
-        # try:
-        #     dist_mat = distance_array(pos, WC_inter, box=boxdim) 
-        # except:
-        #     dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
-
-        # normals = self.calculate_normal(WC_inter)
-
-        # proxim = np.min(dist_mat,axis=1)
-        # loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
-        
-        # mag = []
-        # vect_list = []
-
-        # for i in range(len(pos)):
-            
-        #     z_unit  = [0,0,1]
-        #     vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-        #     norm = normals[loc[i]]
-        #     norm[2] = -abs(norm[2])
-        #     prox = np.dot(vect,norm)
-            
-        #     mag.append(prox)
-        #     vect_list.append(vect)
-        
-            
-        # if result == 'mag':
-        #     return mag # distance (magnitude denotes inside or outside slab)
-        # elif result == 'vect':
-        #     return np.array(vect_list)
-        # elif result == 'both':
-        #     return (mag,np.array(vect_list))
 
     def calculate_normal(self,grid):
 
@@ -185,35 +103,8 @@ class Density:
         magnitudes = np.sqrt(np.sum(normals**2, axis=1))
         normals /= magnitudes[:, np.newaxis]
 
-        #print(f'Start normal: {normals[0]}')
-        #print(f'End normal: {normals[-1]}')
-
         return normals
 
-    # def calculate_normal(self,grid):
-    #     # Assuming the grid is sorted in a way that each row represents a plane in the z-axis
-    #     # Reshape the grid to separate x, y, and z coordinates
-    #     x = grid[:, 0]
-    #     y = grid[:, 1]
-    #     z = grid[:, 2]
-
-    #     # Calculate gradients along x and y axes using central differences
-    #     dx = np.gradient(x, axis=0)
-    #     dy = np.gradient(y, axis=0)
-
-    #     # Initialize an array to store normal vectors
-    #     normals = np.zeros_like(grid)
-
-    #     # Calculate the normal vectors using cross product
-    #     normals[:, 0] = -dy  # x component of the normal vector
-    #     normals[:, 1] = dx  # y component of the normal vector
-    #     normals[:, 2] = z  # z component of the normal vector
-
-    #     # Normalize the normal vectors
-    #     magnitudes = np.sqrt(np.sum(normals**2, axis=1))
-    #     normals /= magnitudes[:, np.newaxis]
-    #     print(normals[-1])
-    #     return normals
 
 
 def hydroniums(self,ox,hy,boxdim,cutoff=1.5):
