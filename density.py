@@ -59,7 +59,7 @@ class Density:
         for i in range(len(pos)):
             
             vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-            norm = normals[loc[i]]
+            norm = -normals[loc[i]]
             #norm[2] = -abs(norm[2])
             prox = np.dot(vect,norm)
             
