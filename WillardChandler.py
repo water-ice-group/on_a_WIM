@@ -186,7 +186,10 @@ class WillardChandler:
 
         hist_input = np.concatenate(result).ravel()
         
-        density,x_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
+        density,bin_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
+
+        x_range = [(bin_range[i]+bin_range[i+1])/2 for i in range(len(bin_range)-1)]
+
         N_A = 6.022*10**23
         xy = self._u.dimensions[0]
         hist_range = upper - lower
@@ -198,24 +201,12 @@ class WillardChandler:
             result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
 
 
-        # remove points within surface cutoff error
-        # -------------------------------------------------------------
-        #wc_width = 1
-        x_out = x_range[:-1]
-        # dump = []
-        # for i in range(len(x_out)):
-        #     if (x_out[i] > -wc_width/2) and (x_out[i] < wc_width/2):
-        #         dump.append(i)
-        # x_out = np.delete(x_out, dump)
-        # result_hist = np.delete(result_hist, dump)
-        # # -------------------------------------------------------------
-
-        save_dat = np.array([x_out,result_hist])
+        save_dat = np.array([x_range,result_hist])
         save_dat = save_dat.transpose()
         np.savetxt('./outputs/' + atom_type + '_dens.dat',save_dat)
         print('Done')
         print()
-        return (result_hist,x_out)
+        return (result_hist,x_range)
     
 
     def nrg_from_dens(self): # extract free energy from density profile
@@ -376,78 +367,6 @@ class WillardChandler:
 
     # Hydrogen bond counting
     def Hbonds_run(self,bins=100,lower=-15,upper=0):
-
-
-        # """Computes hydrogen bond profile mapping the average count with distance from the interface.
-
-        # Args:
-        #     bins (int): Number of bins for histogram.
-        #     lower (float): Lower bound for histogram range.
-        #     upper (float): Upper bound for histogram range.
-        
-        # Returns:
-        #     tuple: Tuple containing histograms of donor and acceptor hydrogen bonds along with their corresponding bin edges.
-
-        # Raises:
-        #     None"""
-        
-        # hbonds = Hbondz(self._u)
-
-        # num_cores = multiprocessing.cpu_count()
-        # result = Parallel(n_jobs=num_cores)(delayed(hbonds.count)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i],lower,upper,bins) for i in tqdm(range(len(self._opos))))
-        
-        # dist_tot  = [i[0] for i in result]
-        # dist_don  = [i[1] for i in result]
-        # dist_acc  = [i[2] for i in result]
-        # dist_norm = [i[3] for i in result]
-        # dist_tot = np.concatenate(dist_tot).ravel()
-        # dist_don = np.concatenate(dist_don).ravel()
-        # dist_acc = np.concatenate(dist_acc).ravel()
-        # dist_norm = np.concatenate(dist_norm).ravel()
-        # hist_tot,xrange = np.histogram(dist_tot,bins=bins,range=[lower,upper])
-        # hist_don,xrange = np.histogram(dist_don,bins=bins,range=[lower,upper])
-        # hist_acc,xrange = np.histogram(dist_acc,bins=bins,range=[lower,upper])
-        # hist_norm,xrange = np.histogram(dist_norm,bins=bins,range=[lower,upper])
-        # out_tot = []
-        # out_don = []
-        # out_acc = []
-        # for i in range(len(hist_norm)):
-        #     if (hist_norm[i] != 0):
-        #         out_tot.append(hist_tot[i]/hist_norm[i])
-        #         out_don.append(hist_don[i]/hist_norm[i])
-        #         out_acc.append(hist_acc[i]/hist_norm[i])
-        #     else:
-        #         out_tot.append(0)
-        #         out_don.append(0)
-        #         out_acc.append(0)
-
-        # # remove points within surface cutoff error
-        # # -------------------------------------------------------------
-        # no_surf_points = 20
-        # wc_width = 20/no_surf_points # min distance between points on isosurface
-        # x_out = xrange[:-1]
-        # dump = []
-        # for i in range(len(x_out)):
-        #     if (x_out[i] > -wc_width/2) and (x_out[i] < wc_width/2):
-        #         dump.append(i)
-        # x_out = np.delete(x_out, dump)
-        # out_tot = np.delete(out_tot, dump)
-        # out_don = np.delete(out_don, dump)
-        # out_acc = np.delete(out_acc, dump)
-        # # -------------------------------------------------------------
-        
-        # tot = np.array([x_out,out_tot])
-        # don = np.array([x_out,out_don])
-        # acc = np.array([x_out,out_acc])
-        # tot = tot.transpose()
-        # don = don.transpose()
-        # acc = acc.transpose()
-        # np.savetxt('./outputs/hbond_tot.dat',tot)
-        # np.savetxt('./outputs/hbond_don.dat',don)
-        # np.savetxt('./outputs/hbond_acc.dat',acc)
-
-        # print('Done.')
-        # return (out_tot,out_don,out_acc,x_out)
         
 
         counter = Hbondz(self._u,self._uz)

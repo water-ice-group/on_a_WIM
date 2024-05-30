@@ -58,8 +58,10 @@ class Density:
 
         for i in range(len(pos)):
             
-            vect = distances.minimize_vectors(WC_inter[loc[i]]-pos[i],box=boxdim)
-            norm = -normals[loc[i]]
+            vect = distances.minimize_vectors(pos[i]-WC_inter[loc[i]],box=boxdim)
+            norm = normals[loc[i]]
+            if norm[2] < 0:
+                norm = -norm
             #norm[2] = -abs(norm[2])
             prox = np.dot(vect,norm)
             
@@ -97,7 +99,7 @@ class Density:
         # Calculate the normal vectors using cross product
         normals[:, 0] = -dy[1:-1]  # x component of the normal vector
         normals[:, 1] = dx[1:-1]   # y component of the normal vector
-        normals[:, 2] = z           # z component of the normal vector
+        normals[:, 2] = z          # z component of the normal vector
 
         # Normalize the normal vectors
         magnitudes = np.sqrt(np.sum(normals**2, axis=1))
