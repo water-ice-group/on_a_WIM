@@ -25,17 +25,17 @@ class Density:
         '''Obtain the proximities of each particular molecule to the WC interface.'''
         '''Input of a SINGLE FRAME into the function.'''
         
-        pos = []
-        wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
-        wrap = np.array(wrap)
-        if cutoff==False:
-            pos = wrap
+        # pos = []
+        # wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
+        # wrap = np.array(wrap)
+        # if cutoff==False:
+        #     pos = wrap
 
-        elif cutoff==True:
-            for i in range(len(wrap)):
-                if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
-                    pos.append(wrap[i]) # append the unwrapped coordinates?
-            pos = np.array(pos)
+        # elif cutoff==True:
+        #     for i in range(len(wrap)):
+        #         if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
+        #             pos.append(wrap[i]) # append the unwrapped coordinates?
+        #     pos = np.array(pos)
 
 
 
@@ -44,9 +44,9 @@ class Density:
         ######################################################################
 
         try:
-            dist_mat = distance_array(pos, WC_inter, box=boxdim) 
+            dist_mat = distance_array(inp, WC_inter, box=boxdim) 
         except:
-            dist_mat = distance_array(pos, np.array(WC_inter), box=boxdim)
+            dist_mat = distance_array(inp, np.array(WC_inter), box=boxdim)
 
         normals = self.calculate_normal(WC_inter)
 
@@ -56,12 +56,12 @@ class Density:
         mag = []
         vect_list = []
 
-        for i in range(len(pos)):
+        for i in range(len(inp)):
             
-            vect = distances.minimize_vectors(pos[i]-WC_inter[loc[i]],box=boxdim)
+            vect = distances.minimize_vectors(inp[i]-WC_inter[loc[i]],box=boxdim)
             norm = normals[loc[i]]
-            if norm[2] < 0:
-                norm = -norm
+            #if norm[2] < 0:
+            #    norm = -norm
             #norm[2] = -abs(norm[2])
             prox = np.dot(vect,norm)
             
