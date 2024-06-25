@@ -32,7 +32,7 @@ class monolayer:
 
 
     ############################################################################################
-    #########################  Identify surface molecules  #####################################
+    #########################  Identify surface H2O ############################################
     ############################################################################################
 
     def surf_positions(self):
@@ -109,8 +109,6 @@ class monolayer:
                 ag = u_alt.atoms[u_alt.atoms.layers==1]
                 W.write(ag)
 
-        #interface.writepdb('outputs/interfacial_h2o.pdb',centered=False)
-
     
 
 
@@ -135,13 +133,6 @@ class monolayer_properties:
 
         return dipVector
     
-# center = boxdim[:3]/2
-# ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
-# h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
-# h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
-# vect1 = h1_wrap_c - ox_wrap_c
-# vect2 = h2_wrap_c - ox_wrap_c
-# dipVector = (vect1 + vect2) * 0.5
     
     def get_OH_vects(self,ox,h1,h2,boxdim):
 
@@ -152,17 +143,7 @@ class monolayer_properties:
 
         return (vect1,vect2)
     
-# center = boxdim[:3]/2
-# init_1 = distances.apply_PBC(h1-ox+center,box=boxdim)
-# init_2 = distances.apply_PBC(h2-ox+center,box=boxdim)
-# vect1 = init_1 - center
-# vect2 = init_2 - center
 
-# ox_wrap_c = distances.apply_PBC(ox+center,box=boxdim)
-# h1_wrap_c = distances.apply_PBC(h1+center,box=boxdim)
-# h2_wrap_c = distances.apply_PBC(h2+center,box=boxdim)
-# vect1 = h1_wrap_c - ox_wrap_c
-# vect2 = h2_wrap_c - ox_wrap_c
     
     def get_closest_vect(self,atomtype_1,atomtype_2,boxdim,locr=False):
 
@@ -187,9 +168,9 @@ class monolayer_properties:
 
     def calc_angles(self,vect1,vect2):
 
-        cosTheta = [np.dot(vect1[i],vect2[i])/((np.linalg.norm(vect1[i]))*np.linalg.norm(vect2[i])) for i in range(len(vect1))]
+        # require the negative of vect2 to get vector from water to interface
+        cosTheta = [np.dot(vect1[i],-vect2[i])/((np.linalg.norm(vect1[i]))*np.linalg.norm(-vect2[i])) for i in range(len(vect1))]
         theta = np.rad2deg(np.arccos(cosTheta))
-        #theta = cosTheta
 
         return theta
     
@@ -199,147 +180,13 @@ class monolayer_properties:
         return cosTheta
 
 
-    #####################################################################################################
-
-    def calc_h2o_dipole_angle(self,ox,h1,h2,wc,boxdim):
-
-        '''Calculate the angle between the water's dipole and the 
-        vector connecting the molecule to the instantaneous
-        interface. Select layer using the monolayer class.'''
-
-        dipVector = self.get_dipoles(ox,h1,h2,boxdim)
-        
-        
-        dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-        
-        
-        theta = self.calc_angles(dipVector,surf_vect)
-        
-
-        return (dist,theta)
-    
-
-    def calc_OH_vect_angles(self,ox,h1,h2,wc,boxdim):
-
-        vect1,vect2 = self.get_OH_vects(ox,h1,h2,boxdim)
-        dist,surf_vect_1 = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-        
-        theta_1 = self.calc_angles(vect1,surf_vect_1)
-        theta_2 = self.calc_angles(vect2,surf_vect_1)
-        output = np.concatenate((theta_1,theta_2))
-
-        return output
-
-
-
-    def calc_dip_C_angle(self,ox,h1,h2,cpos,boxdim):
-
-        '''Calculate the angle between the water's dipole and the 
-        closest carbon.'''
-
-        dipVector = self.get_dipoles(ox,h1,h2,boxdim)
-        interm_dist,interm_vect = self.get_closest_vect(ox,cpos,boxdim)
-
-        theta = self.calc_angles(dipVector,interm_vect)
-
-        return (interm_dist,theta)
-
-
-    
-    def calc_OW_C_RDF(self,inter_ox,cpos,boxdim):
-
-        '''Calculate the angle between the water's dipole and the 
-        closest carbon.'''
-
-        dist_mat = distance_array(inter_ox,cpos,box=boxdim)
-        output = np.concatenate(dist_mat).ravel()
-        
-        return output
-    
-
-
-    def OW_OC_dist(self,ox,ocpos1,ocpos2,boxdim):
-
-        '''Combine the co2 oxygens at each frame. Plug into function to extract distances.
-        OW-OC distance important in gauging the number of hydrogen bonds at an interface.'''
-
-        ocpos_comb = []
-        for i in range(len(ocpos1)):
-            ocpos_comb.append(ocpos1[i])
-            ocpos_comb.append(ocpos2[i])
-
-        ocpos_comb = np.array(ocpos_comb)
-
-        interm_dist,interm_vect = self.get_closest_vect(ox,ocpos_comb,boxdim)
-
-        return interm_dist
-
-    def OW_OC_angle(self,ox,ocpos1,ocpos2,wc,boxdim):
-
-        '''Combine the co2 oxygens at each frame. Plug into function to extract distances.
-        OW-OC distance important in gauging the number of hydrogen bonds at an interface.'''
-
-        ocpos_comb = []
-        for i in range(len(ocpos1)):
-            ocpos_comb.append(ocpos1[i])
-            ocpos_comb.append(ocpos2[i])
-
-        ocpos_comb = np.array(ocpos_comb)
-
-        interm_dist,interm_vect = self.get_closest_vect(ox,ocpos_comb,boxdim)
-        dist,surf_vect = Density(self._u).proximity(wc,ox,boxdim,result='both',cutoff=False)
-
-        theta = self.calc_angles(interm_vect,surf_vect)
-
-
-        return theta
-
-
-    #####################################################################################################
-    
-    # def hbond_properties(self,ox,h1,h2,ocpos1,ocpos2,boxdim):
-
-    #     ocpos_comb = []
-    #     for i in range(len(ocpos1)):
-    #         ocpos_comb.append(ocpos1[i])
-    #         ocpos_comb.append(ocpos2[i])
-    #     ocpos_comb = np.array(ocpos_comb)
-
-    #     interm_dist,loc = self.get_closest_vect(ox,ocpos_comb,boxdim,locr=True) # first value returned gives distances. 
-    #     #print(loc)
-
-
-    #     angles = []
-    #     for i in range(len(ox)):
-
-    #         oxpos = ox[i]
-    #         hpos = [h1[i],h2[i]]
-    #         hpos = np.array(hpos)
-
-    #         dist_mat = distance_array(ocpos_comb[loc[i]],hpos)
-    #         proxim = np.min(dist_mat,axis=1)            
-    #         loc_h = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]
-
-    #         cent_atom = hpos[loc_h]
-
-    #         vect1 =  oxpos - cent_atom 
-    #         vect2 = ocpos_comb[loc[i]] - cent_atom
-    #         vect1 = vect1[0]
-    #         vect2 = vect2[0]
-
-    #         cosTheta = np.dot(vect1,vect2)/((np.linalg.norm(vect1))*np.linalg.norm(vect2))
-    #         theta = np.rad2deg(np.arccos(cosTheta))
-
-    #         angles.append(theta)
-
-    #     return (interm_dist,angles)
 
 
 
     #####################################################################################################
-    
-    '''Isolating interfacial CO2 more difficult. Following section looks to calculate RDFs.'''
 
+
+    ''''Analyse the surface CO2.'''
     def surf_co2(self,wc,cpos,boxdim,lower,upper):
     
         dens = Density(self._u)
@@ -347,9 +194,6 @@ class monolayer_properties:
         result = np.array(result)
         indices = np.where((result >= lower) & (result <= upper))[0]
         co2_surf = cpos[indices]
-
-        # print(np.min(co2_surf[:,2]))
-        # print(np.max(co2_surf[:,2]))
         
         try:
             co2_dist = self_distance_array(co2_surf, box=boxdim)
@@ -371,9 +215,6 @@ class monolayer_properties:
         oc1_surf = ocpos1[indices]
         oc2_surf = ocpos2[indices]
 
-        #print(f'OC_1_min: {np.min(oc1_surf[:,2])}')
-        #print(f'OC_1_max: {np.max(oc2_surf[:,2])}')
-
         vect_1 = distances.minimize_vectors(oc1_surf - co2_surf,box=boxdim)
         vect_2 = distances.minimize_vectors(oc2_surf - co2_surf,box=boxdim)
 
@@ -386,68 +227,7 @@ class monolayer_properties:
 
         return output
 
-    # def extract_atoms(self, distance_matrix, min_distance, max_distance):
 
-    #     '''Determine the molecules that reside within a certain distance range 
-    #     from the instantaneous interface.'''
-
-    #     within_distance_range_mask = (distance_matrix >= min_distance) & (distance_matrix <= max_distance)
-    #     within_distance_range_rows = np.any(within_distance_range_mask, axis=1)
-    #     atoms_within_distance_range = np.where(within_distance_range_rows)[0]
-
-    #     return atoms_within_distance_range
-
-    # def co2_surf_dist(self, wc_inter, cpos, boxdim, min_distance, max_distance):
-
-    #     '''Identify CO2s residing at the water surface using proximity to the instantaneous interface.'''
-
-    #     try:
-    #         dist_mat = distance_array(cpos, wc_inter, box=boxdim)
-    #     except:
-    #         dist_mat = distance_array(cpos, wc_inter, box=boxdim)
-    #     loc = self.extract_atoms(dist_mat, min_distance, max_distance)
-
-
-    #     co2_surf = [cpos[i] for i in loc]
-    #     co2_surf = np.array(co2_surf)
-    #     print(np.min(co2_surf[:,2]))
-    #     print(np.max(co2_surf[:,2]))
-
-    #     try:
-    #         co2_dist = self_distance_array(co2_surf, box=boxdim)
-    #         return co2_dist
-    #     except:
-    #         result = [0, 0]
-    #         return result
-    #         # do nothing if no co2 at the surface.
-        
-
-    # def co2_bond_angles_surf(self,wc,cpos,ocpos1,ocpos2,boxdim,min_distance,max_distance):
-
-    #     try:
-    #         dist_mat = distance_array(cpos,wc,box=boxdim)
-    #     except:
-    #         dist_mat = distance_array(cpos,np.array(wc),box=boxdim)
-    #     loc = self.extract_atoms(dist_mat,min_distance,max_distance)
-
-    #     c_surf = [cpos[i] for i in loc]
-    #     oc1_surf = [ocpos1[i] for i in loc]
-    #     oc2_surf = [ocpos2[i] for i in loc]
-    #     c_surf = np.array(c_surf)
-    #     oc1_surf = np.array(oc1_surf)
-    #     oc2_surf = np.array(oc2_surf)
-
-    #     vect_1 = distances.minimize_vectors(oc1_surf - c_surf,box=boxdim)
-    #     vect_2 = distances.minimize_vectors(oc2_surf - c_surf,box=boxdim)
-
-    #     dist,surf_vect = Density(self._u).proximity(wc,c_surf,boxdim,result='both',cutoff=False)
-
-    #     theta_1 = self.calc_angles(vect_1,surf_vect)
-    #     theta_2 = self.calc_angles(vect_2,surf_vect)
-
-    #     output = np.concatenate((theta_1,theta_2))
-
-    #     return output
 
 
    

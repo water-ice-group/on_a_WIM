@@ -16,7 +16,7 @@ from utilities import AtomPos
 from density import Density, dens_plot
 from orientation import Orientation, oriPlot
 from hbondz import Hbondz, hbondPlot
-from itim import monolayer, monolayer_properties
+from itim import monolayer,monolayer_properties
 
 
 
@@ -404,164 +404,13 @@ class WillardChandler:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
     ##########################################################################
     ################################ ITIM analysis ###########################
     ##########################################################################
 
-    '''Perform this analysis last. Can induce some errors in the parallelisation
+    '''Code for analysing the CO2 monolayer within a certain cutoff. 
+    Perform this analysis last. Can induce some errors in the parallelisation
     code of other functions when used.'''
-
-
-    def save_inter_h2o(self): 
-        
-        '''Save the interfacial water for visualisation.'''
-        
-        itim = monolayer(self._u,self._start,self._end) 
-        itim.save_coords()
-
-
-    def surface_rdf(self,bins): # calculate RDF of surface water
-        
-        '''Calculate the radial distribution function of the interfacial water.'''
-
-        itim = monolayer(self._u,self._start,self._end)
-        cluster_prop = monolayer_properties(self._u)
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
-        num_cores = int(multiprocessing.cpu_count())
-        result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_OW_C_RDF)(inter_ox[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-        hist_input = np.concatenate(result).ravel()
-        norm=True
-        density,x_range = np.histogram(hist_input,bins=bins,
-                                    density=norm,range=(1,10))
-        density = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))]
-        save_dat = np.array([x_range[:-1],density])
-        save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/surf_RDF.dat',save_dat)
-        return (density,x_range[:-1])
-    
-
-
-
-    def Cluster_distances(self,property='dip_C',bins=100):
-
-        '''Identify distances of closest approach between 
-        two sets of molecules.'''
-
-        itim = monolayer(self._u,self._start,self._end)
-        cluster_prop= monolayer_properties(self._u)
-
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
-        
-        if property=='dip_C': # distance between water dipole and carbon
-            num_cores = int(multiprocessing.cpu_count())
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_dip_C_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-            dist = [i[0] for i in result]
-            hist_input = np.concatenate(dist).ravel()
-            norm=True
-        elif property=='OW_OC': # distance between water oxygen and carbon
-            num_cores = int(multiprocessing.cpu_count())
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.OW_OC_dist)(inter_ox[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-            dist = result
-            hist_input = np.concatenate(dist).ravel()
-            norm=True
-
-        density,x_range = np.histogram(hist_input,bins=bins,
-                                    density=norm,range=(1,8))
-        save_dat = np.array([x_range[:-1],density])
-        save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/cluster_{property}_distance.dat',save_dat)
-        return (density,x_range[:-1])
-
-
-    def Cluster_orientations(self,property='water_dipole',bins=100):
-
-        '''Calculate angles of interest pertaining to interfacial
-        water molecules.'''
-
-        itim = monolayer(self._u,self._start,self._end)
-        cluster_prop = monolayer_properties(self._u)
-
-        inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
-
-        if property=='water_dipole': # angle between water dipole and WC vector connecting to instantaneous interface
-            dens = Density(self._u)
-            num_cores = int(multiprocessing.cpu_count())
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_h2o_dipole_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-            theta = [i[1] for i in result]  
-            hist_input = np.concatenate(theta).ravel()
-            norm = True
-        elif property=='OH_bonds': # angle between hydrogen bond vectors and WC vector connecting to instantaneous interface
-            num_cores = int(multiprocessing.cpu_count())
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_OH_vect_angles)(inter_ox[i],inter_h1[i],inter_h2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-            theta = result
-            hist_input = np.concatenate(theta).ravel()
-            norm = True
-        elif property=='dip_C': # angle between water dipole and nearest carbon
-            num_cores = int(multiprocessing.cpu_count())
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.calc_dip_C_angle)(inter_ox[i],inter_h1[i],inter_h2[i],self._cpos[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-            theta = [i[1] for i in result]  
-            hist_input = np.concatenate(theta).ravel()
-            norm = True
-        elif property=='OW_OC': # angle between water oxygen and nearest carbon
-            dens = Density(self._u)
-            num_cores = int(multiprocessing.cpu_count())
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.OW_OC_angle)(inter_ox[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-            hist_input = np.concatenate(result).ravel()
-            norm = True
-
-        density,x_range = np.histogram(hist_input,bins=bins,
-                                    density=norm,
-                                    range=(0,180)
-                                    )
-        output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))] # divide by the isotropic distribution
-        save_dat = np.array([x_range[:-1],output])
-        save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/cluster_{property}_angle.dat',save_dat)
-        return (output,x_range[:-1])
-
-    
-    # def surf_co2(self,property='rdf',min_cutoff=0,max_cutoff=4,bins=100,norm=True):
-
-    #     '''Calculate properties of CO2 molecules at the interface.
-
-    #     min_cutoff: minimum cutoff for locatinng CO2. 
-    #     max_cutoff: maximum cutoff for locating CO2.'''
-
-    #     itim = monolayer(self._u,self._start,self._end)
-    #     cluster_prop = monolayer_properties(self._u)
-
-    #     num_cores = int(multiprocessing.cpu_count())
-    #     if property=='rdf':
-    #         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_surf_dist)(self._WC[i],self._cpos[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
-    #         hist_input = np.concatenate(result).ravel()
-    #         density,x_range = np.histogram(hist_input,bins=bins,
-    #                         density=norm,range=(1,10))
-    #         #output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
-    #         output = [density[i]/(4*np.pi*x_range[i]**2) for i in range(len(density))] # convert to RDF
-    #         #output = density
-    #     elif property=='CO_angle':
-    #         result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
-    #         hist_input = np.concatenate(result).ravel()
-    #         density,x_range = np.histogram(hist_input,bins=bins,
-    #                         density=norm,range=(1,180))
-    #         output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
-                
-    #     save_dat = np.array([x_range[:-1],output])
-    #     save_dat = save_dat.transpose()
-    #     np.savetxt(f'./outputs/surf_co2_{property}.dat',save_dat)
-    #     return (output,x_range[:-1])
-        
 
     def surf_co2(self,property='rdf',min_cutoff=0,max_cutoff=4,bins=100,norm=True):
 
@@ -579,14 +428,17 @@ class WillardChandler:
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
                             density=norm,range=(1,10))
-            output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] # convert to RDF
-            #output = [density[i]/(4*np.pi*x_range[i]**2) for i in range(len(density))] # convert to RDF
-            #output = density
+            
+            # Convert to lateral distribution function
+            output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] 
+
         elif property=='CO_angle':
             result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
             hist_input = np.concatenate(result).ravel()
             density,x_range = np.histogram(hist_input,bins=bins,
                             density=norm,range=(5,175))
+            
+            # Divide by isotropic distribution 
             output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
                 
         save_dat = np.array([x_range[:-1],output])
@@ -596,37 +448,4 @@ class WillardChandler:
 
 
     
-    # def Hbond_prop(self,bins=100):
 
-    #     itim = monolayer(self._u,self._start,self._end)
-    #     cluster_prop = monolayer_properties(self._u)
-
-    #     inter_ox,inter_h1,inter_h2 = itim.surf_positions_single_interface(self._boxdim)
-
-    #     # obtain distances and angles
-    #     num_cores = int(multiprocessing.cpu_count())
-    #     result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.hbond_properties)(inter_ox[i],inter_h1[i],inter_h2[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i]) for i in tqdm(range(len(inter_ox))))
-    #     dist = [i[0] for i in result]
-    #     ang  = [i[1] for i in result]
-
-    #     # distance hist
-    #     hist_input = np.concatenate(dist).ravel()
-    #     norm=True
-    #     density_dist,x_range_dist = np.histogram(hist_input,bins=bins,
-    #                                 density=norm,range=(1,10))
-    #     save_dat = np.array([x_range_dist[:-1],density_dist])
-    #     save_dat = save_dat.transpose()
-    #     np.savetxt(f'./outputs/hbonding_dist_surf.dat',save_dat)
-        
-
-    #     # angle hist
-    #     hist_input = np.concatenate(ang).ravel()
-    #     norm=True
-    #     density_ang,x_range_ang = np.histogram(hist_input,bins=bins,
-    #                                 density=norm,range=(1,180))
-    #     output = [density_ang[i]/( 0.5*np.sin((x_range_ang[i]*(np.pi / 180))) ) for i in range(len(x_range_ang[:-1]))]
-    #     save_dat = np.array([x_range_ang[:-1],output])
-    #     save_dat = save_dat.transpose()
-    #     np.savetxt(f'./outputs/hbonding_ang_surf.dat',save_dat)
-
-    #     return ((density_dist,x_range_dist[:-1]),(density_ang,x_range_ang[:-1]))

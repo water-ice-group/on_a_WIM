@@ -24,19 +24,6 @@ class Density:
     def proximity(self,WC_inter,inp,boxdim,upper=25,result='mag',cutoff=False):
         '''Obtain the proximities of each particular molecule to the WC interface.'''
         '''Input of a SINGLE FRAME into the function.'''
-        
-        # pos = []
-        # wrap = distances.apply_PBC(inp,boxdim) # obtained the wrapped coordinates
-        # wrap = np.array(wrap)
-        # if cutoff==False:
-        #     pos = wrap
-
-        # elif cutoff==True:
-        #     for i in range(len(wrap)):
-        #         if (wrap[i][2] >= 0) and (wrap[i][2] < (2*upper)): # check that coordinates fall within given range of evaluation. 
-        #             pos.append(wrap[i]) # append the unwrapped coordinates?
-        #     pos = np.array(pos)
-
 
 
         ######################################################################
@@ -51,18 +38,20 @@ class Density:
         normals = self.calculate_normal(WC_inter)
 
         proxim = np.min(dist_mat,axis=1)
-        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))]  # obtain the location of the minimum distance. 
+        loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))] 
         
         mag = []
         vect_list = []
 
         for i in range(len(inp)):
             
+            # obtain vector pointing from interface to molecule
             vect = distances.minimize_vectors(inp[i]-WC_inter[loc[i]],box=boxdim)
+
+            # obtain normal vector at interface
             norm = normals[loc[i]]
-            #if norm[2] < 0:
-            #    norm = -norm
-            #norm[2] = -abs(norm[2])
+
+            # calculate dot product
             prox = np.dot(vect,norm)
             
             mag.append(prox)
@@ -70,9 +59,9 @@ class Density:
         
             
         if result == 'mag':
-            return mag # distance (magnitude denotes inside or outside slab)
+            return mag
         elif result == 'vect':
-            return np.array(vect_list)
+            return np.array(vect_list) # vector from the interface to the molecule
         elif result == 'both':
             return (mag,np.array(vect_list))
         
