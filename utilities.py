@@ -1,5 +1,5 @@
 # utilities for module
-
+import MDAnalysis as mda
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.transformations.wrap import wrap,unwrap
 import numpy as np
@@ -7,7 +7,6 @@ import tqdm as tqdm
 import os
 from joblib import Parallel, delayed
 import multiprocessing
-
 
 
 class AtomPos: 
@@ -41,10 +40,10 @@ class AtomPos:
 
         print()
         print('Obtaining atom coordinates.')
-        opos,hpos,box_dim = self.positions_unorg()
+        opos,hpos,h3opos,box_dim = self.positions_unorg()
         print()
     
-        return (opos,hpos,box_dim)
+        return (opos,hpos,h3opos,box_dim)
         
 
     def positions(self):
@@ -55,8 +54,8 @@ class AtomPos:
         h1_traj = []
         h2_traj = []
         cpos_traj = []
-        ocpos1_traj = []
-        ocpos2_traj = []
+        ocpos_traj = []
+        hcpos_traj = []
         box_dim = []
         length = len(self._u.trajectory[self._start:self._end])
         print('Parsing through frames.')
@@ -77,55 +76,16 @@ class AtomPos:
                                     self._u.select_atoms('name' + ' OC').positions, 
                                     box=self._u.dimensions)
 
-            try: 
-                idx = np.argpartition(c_oc_dist, 3, axis=-1)
-                cpos = self._u.select_atoms('name' + ' C').positions
-                oc1pos = self._u.select_atoms('name' + ' OC')[idx[:, 0]].positions
-                oc2pos = self._u.select_atoms('name' + ' OC')[idx[:, 1]].positions
-                cpos_traj.append(cpos)
-                ocpos1_traj.append(oc1pos)
-                ocpos2_traj.append(oc2pos)
-            except:  # allow exception for single co2 molecule (partitioning breaks for this.)
-                cpos = self._u.select_atoms('name' + ' C').positions
-                ocpos = self._u.select_atoms('name' + ' OC').positions
-                cpos_traj.append(cpos)
-                ocpos1_traj.append(ocpos)
+            cpos = self._u.select_atoms('name' + ' C').positions
+            ocpos = self._u.select_atoms('name' + ' OC').positions
+            hcpos = self._u.select_atoms('name' + ' HC').positions
+            cpos_traj.append(cpos)
+            ocpos_traj.append(ocpos)
+            hcpos_traj.append(hcpos)
+
             box_dim.append(self._u.dimensions)
 
-        return (opos_traj, h1_traj, h2_traj, cpos_traj, ocpos1_traj, ocpos2_traj, box_dim)
-    
-        # def process_frame(ts):
-        #     oh_dist = distance_array(self._u.select_atoms('name' + ' OW').positions, # distance array loaded from module
-        #                             self._u.select_atoms('name' + ' H').positions, 
-        #                             box=self._u.dimensions)
-        #     idx = np.argpartition(oh_dist, 3, axis=-1)
-        #     opos = self._u.select_atoms('name' + ' OW').positions
-        #     h1pos = self._u.select_atoms('name' + ' H')[idx[:, 0]].positions
-        #     h2pos = self._u.select_atoms('name' + ' H')[idx[:, 1]].positions
-        #     opos_traj.append(opos)
-        #     h1_traj.append(h1pos)
-        #     h2_traj.append(h2pos)
-        #     c_oc_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
-        #                             self._u.select_atoms('name' + ' OC').positions, 
-        #                             box=self._u.dimensions)
-
-        #     try: 
-        #         idx = np.argpartition(c_oc_dist, 3, axis=-1)
-        #         cpos = self._u.select_atoms('name' + ' C').positions
-        #         oc1pos = self._u.select_atoms('name' + ' OC')[idx[:, 0]].positions
-        #         oc2pos = self._u.select_atoms('name' + ' OC')[idx[:, 1]].positions
-        #         cpos_traj.append(cpos)
-        #         ocpos1_traj.append(oc1pos)
-        #         ocpos2_traj.append(oc2pos)
-        #     except:  # allow exception for single co2 molecule (partitioning breaks for this.)
-        #         cpos = self._u.select_atoms('name' + ' C').positions
-        #         ocpos = self._u.select_atoms('name' + ' OC').positions
-        #         cpos_traj.append(cpos)
-        #         ocpos1_traj.append(ocpos)
-        #     box_dim.append(self._u.dimensions)
-        # num_cores = int(multiprocessing.cpu_count()/2)
-        # result = Parallel(n_jobs=num_cores,backend='threading')(delayed(process_frame)(ts) for ts in self._u.trajectory[self._start:self._end])
-        # return (opos_traj, h1_traj, h2_traj, cpos_traj, ocpos1_traj, ocpos2_traj, box_dim)
+        return (opos_traj, h1_traj, h2_traj, cpos_traj, ocpos_traj, hcpos_traj, box_dim)
 
 
     def positions_unorg(self):
@@ -133,24 +93,44 @@ class AtomPos:
         '''Load trajectory for water. Account for hydronium ions (cannot perform molecule aggregation).'''
         opos_traj = []
         hpos_traj = []
+        h3opos_traj = []
         box_dim = []
         length = len(self._u.trajectory[self._start:self._end])
         print('Parsing through frames.')
         print(f'Total: {length}.')
         
-        def process_frame(ts):
+
+        for ts in self._u.trajectory[self._start:self._end]:
+
+            oh_dist = distance_array(self._u.select_atoms('name' + ' OW').positions, # distance array loaded from module
+                        self._u.select_atoms('name' + ' H').positions, 
+                        box=self._u.dimensions)
+
             opos = self._u.select_atoms('name' + ' OW').positions
             hpos = self._u.select_atoms('name' + ' H').positions
+
+            hydronium_indices = self.hydronium_crit(oh_dist)
+            h3opos = self._u.select_atoms('name' + ' OW')[hydronium_indices].positions
+
             opos_traj.append(opos)
-            hpos_traj.append(hpos_traj)
+            hpos_traj.append(hpos)
+            h3opos_traj.append(h3opos)
             box_dim.append(self._u.dimensions)
         
-        num_cores = int(multiprocessing.cpu_count()/2)
+        return (opos_traj, hpos_traj, h3opos_traj, box_dim)
+    
+
+
+    def hydronium_crit(self, dist_arr):
+
+        inp = dist_arr
+        threshold = 1.2 # A. Set the distance threshold for OH distance in hydronium ions
+        indices = np.argpartition(inp, 3, axis=1)[:, :3]  
+        elements = inp[np.arange(len(inp))[:, None], indices] 
+        below_threshold = np.all(elements < threshold, axis=1)  
+        row_indices = np.where(below_threshold)[0]  
+
+        return row_indices
         
-        print()
-        print(f'Number of cores: {num_cores}')
-        print()
-        print('Processing frames.')
-        result = Parallel(n_jobs=num_cores, backend='threading')(delayed(process_frame)(ts) for ts in self._u.trajectory[self._start:self._end])
-        
-        return (opos_traj, hpos_traj, box_dim)
+
+

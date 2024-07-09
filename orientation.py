@@ -17,8 +17,6 @@ class Orientation:
     def _getCosTheta(self,ox,h1,h2,wc,boxdim,vector):
 
         center = boxdim[:3]/2
-        # vect1 = distances.apply_PBC(h1-ox+center,box=boxdim)
-        # vect2 = distances.apply_PBC(h2-ox+center,box=boxdim)
 
         vect1 = distances.minimize_vectors(h1-ox,boxdim)
         vect2 = distances.minimize_vectors(h2-ox,boxdim)
@@ -31,7 +29,7 @@ class Orientation:
         if vector=='z':
             cosTheta = [np.dot(dipVector0[i],[0,0,1])/np.linalg.norm(dipVector0[i]) for i in range(len(dist))]
         elif vector=='WC':
-            cosTheta = [np.dot(dipVector0[i],surf_vect[i])/((np.linalg.norm(surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
+            cosTheta = [np.dot(dipVector0[i],-surf_vect[i])/((np.linalg.norm(-surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
 
         return (dist,cosTheta)
 

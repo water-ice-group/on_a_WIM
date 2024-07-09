@@ -47,15 +47,12 @@ class WillardChandler:
 
 
 
-
-
-
-
-
-
     ##########################################################################
     ################################ Surface #################################
     ##########################################################################
+
+
+
 
     def generate(self,grid=400,new_inter=True,org=True):
 
@@ -73,9 +70,9 @@ class WillardChandler:
             pos = AtomPos(self._u,self._start,self._end)
             self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
             opos_traj = self._opos
-        elif org==False:    # no organisation of waters. Extract list of oxygens and hydrogens. # Needed for hydronium/hydroxide systems. 
+        elif org==False:    # no organisation of waters. Extract list of oxygens and hydrogens. Needed for hydronium/hydroxide systems. 
             pos = AtomPos(self._u,self._start,self._end)
-            self._opos,self._hpos,self._boxdim = pos.prepare_unorg()
+            self._opos,self._hpos,self._h3opos,self._boxdim = pos.prepare_unorg()
             opos_traj = self._opos
 
 
@@ -175,6 +172,8 @@ class WillardChandler:
             traj = self._opos
         elif atom_type == 'C':
             traj = self._cpos
+        elif atom_type == 'H3O':
+            traj = self._h3opos
 
         print()
         print(f'Obtaining {atom_type} density.')
@@ -195,10 +194,12 @@ class WillardChandler:
         hist_range = upper - lower
         if atom_type == 'OW':
             mol_dens = 18.01528
-            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
         elif atom_type == 'C':
-            mol_dens = 44.0095 
-            result_hist = [(i*mol_dens)/( (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density] 
+            mol_dens = 44.0095 # need to alter this 
+        elif atom_type == 'H3O':
+            mol_dens = 19.023
+        result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
+
 
 
         save_dat = np.array([x_range,result_hist])
@@ -209,8 +210,11 @@ class WillardChandler:
         return (result_hist,x_range)
     
 
-    def nrg_from_dens(self): # extract free energy from density profile
-        fin = np.loadtxt('./outputs/C_dens.dat')
+    def nrg_from_dens(self,species='C'): # extract free energy from density profile
+        if species == 'C':
+            fin = np.loadtxt('./outputs/C_dens.dat')
+        elif species == 'H3O':
+            fin = np.loadtxt('./outputs/H3O_dens.dat')
         dist = fin[:,0]
         dens = fin[:,1]
         R = 8.3145

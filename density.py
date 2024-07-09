@@ -35,7 +35,10 @@ class Density:
         except:
             dist_mat = distance_array(inp, np.array(WC_inter), box=boxdim)
 
-        normals = self.calculate_normal(WC_inter)
+        surf_div = len(WC_inter)//2
+        normals_1 = self.calculate_normal(WC_inter[:surf_div])
+        normals_2 = self.calculate_normal(WC_inter[surf_div:])
+        normals = np.concatenate((normals_1,normals_2),axis=0)
 
         proxim = np.min(dist_mat,axis=1)
         loc = [(np.where(dist_mat[i] == proxim[i])[0][0]) for i in range(len(proxim))] 
@@ -44,9 +47,17 @@ class Density:
         vect_list = []
 
         for i in range(len(inp)):
+
+            # define which surface normals to use
+            # if loc[i] < surf_div:
+            #     normals = normals_1
+            # else:
+            #     normals = normals_2   
             
             # obtain vector pointing from interface to molecule
             vect = distances.minimize_vectors(inp[i]-WC_inter[loc[i]],box=boxdim)
+            if loc[i] >= surf_div:
+                vect = -vect
 
             # obtain normal vector at interface
             norm = normals[loc[i]]
@@ -61,7 +72,7 @@ class Density:
         if result == 'mag':
             return mag
         elif result == 'vect':
-            return np.array(vect_list) # vector from the interface to the molecule
+            return np.array(vect_list) 
         elif result == 'both':
             return (mag,np.array(vect_list))
         

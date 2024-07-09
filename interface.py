@@ -44,9 +44,9 @@ class WC_Interface:
 
         grid = []
         x = self._u.dimensions[0]
-        x_spacing = int(2*self._u.dimensions[0])
+        x_spacing = int(1*self._u.dimensions[0])
         y = self._u.dimensions[1]
-        y_spacing = int(2*self._u.dimensions[1])
+        y_spacing = int(1*self._u.dimensions[1])
 
         for i in np.linspace(0,x,x_spacing):
             for j in np.linspace(0,y,y_spacing):
@@ -85,7 +85,10 @@ class WC_Interface:
         
         field = self.CG_field(grid,O_atoms,boxdim)
         manifold = grid
-        inter_tot = np.zeros(shape=(int(len(field)/self._gs),3))
+
+        inter_lower = np.zeros(shape=(int(len(field)/self._gs),3))
+        inter_upper = np.zeros(shape=(int(len(field)/self._gs),3))
+
 
         for i in range(int(len(field)/self._gs)):
 
@@ -95,14 +98,27 @@ class WC_Interface:
             # extract corresponding z coordinates along point in x/y frame. 
             z_pos = manifold[i*self._gs:(i+1)*self._gs]
 
+            div = int(len(z_field)/2)
+
+            lower_field = z_field[:div]
+            upper_field = z_field[div:]
+            lower_pos = z_pos[:div]
+            upper_pos = z_pos[div:]
+
+
+            diff_lower = abs(lower_field - crit)
+            min_z = min(diff_lower)
+            min_idx = np.where(diff_lower == min_z)[0][0]
+            inter_lower[i] = lower_pos[min_idx]
             
-            diff = abs(z_field - crit)
-            min_z = min(diff)
-            min_idx = np.where(diff == min_z)[0][0]
+            diff_upper = abs(upper_field - crit)
+            min_z = min(diff_upper)
+            min_idx = np.where(diff_upper == min_z)[0][0]
+            inter_upper[i] = upper_pos[min_idx]
 
-            inter_tot[i] = z_pos[min_idx]
+            out = np.concatenate((inter_lower,inter_upper),axis=0)
 
-        return inter_tot
+        return out
 
 
     ##########################################################################
