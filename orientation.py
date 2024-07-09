@@ -14,22 +14,36 @@ class Orientation:
                  **kwargs):
         self._u = universe
     
-    def _getCosTheta(self,ox,h1,h2,wc,boxdim,vector):
+    def _getCosTheta(self,ox,h1,h2,wc,boxdim):
 
         center = boxdim[:3]/2
 
         vect1 = distances.minimize_vectors(h1-ox,boxdim)
         vect2 = distances.minimize_vectors(h2-ox,boxdim)
 
-        dipVector0 = (vect1 + vect2) * 0.5 # - center # map the dipole
+        dipVector0 = distances.minimize_vectors((vect1 + vect2) * 0.5,boxdim) 
 
         dens = Density(self._u)
         dist,surf_vect = dens.proximity(wc,ox,boxdim,result='both',cutoff=False)
 
-        if vector=='z':
-            cosTheta = [np.dot(dipVector0[i],[0,0,1])/np.linalg.norm(dipVector0[i]) for i in range(len(dist))]
-        elif vector=='WC':
-            cosTheta = [np.dot(dipVector0[i],-surf_vect[i])/((np.linalg.norm(-surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
+        cosTheta = [np.dot(dipVector0[i],-surf_vect[i])/((np.linalg.norm(-surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
+
+        return (dist,cosTheta)
+
+
+    def _getCosTheta_z(self,ox,h1,h2,boxdim):
+
+        center = boxdim[:3]/2
+
+        vect1 = distances.minimize_vectors(h1-ox,boxdim)
+        vect2 = distances.minimize_vectors(h2-ox,boxdim)
+
+        dist = [distances.apply_PBC(ox[i],boxdim)[2] for i in range(len(ox))]
+
+        norm = [0,0,1]
+        dipVector0 = distances.minimize_vectors((vect1 + vect2) * 0.5,boxdim) 
+
+        cosTheta = [np.dot(dipVector0[i], norm)/(np.linalg.norm(dipVector0[i])*np.linalg.norm(norm)) for i in range(len(dist))]
 
         return (dist,cosTheta)
 

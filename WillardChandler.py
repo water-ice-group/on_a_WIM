@@ -285,13 +285,17 @@ class WillardChandler:
         print(f'Obtaining orientations.')
         num_cores = multiprocessing.cpu_count()
         print('Calculating orientation profile ...')
+
         if atomtype == 'water':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i],vect) for i in tqdm(range(len(self._opos))))
             if vect == 'WC':
+                result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(self._opos))))
                 lower = lower
                 upper = 0
+            elif vect == 'z':
+                result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_z)(self._opos[i],self._h1pos[i],self._h2pos[i],self._boxdim[i]) for i in tqdm(range(len(self._opos))))
+
         elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],vect,prop) for i in tqdm(range(len(self._cpos))))
+            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],prop) for i in tqdm(range(len(self._cpos))))
             if vect == 'WC':
                 lower = 0
                 upper = upper
@@ -303,25 +307,17 @@ class WillardChandler:
         print('Generating histogram(s)')
         dist_array = np.concatenate(dist).ravel()
         Theta_array = np.concatenate(theta).ravel()
+        print(dist[0])
+        print(theta[0])
         
         if histtype=='time':
+            print(len(dist_array))
+            print(len(Theta_array))
             result = ori._getHistogram(dist_array,
                                     Theta_array,
                                     bins=bins,hist_range=[lower,upper])
             x_out = result[:,0]
             result_hist = result[:,1]
-
-            # remove points within surface cutoff error
-            # -------------------------------------------------------------
-            no_surf_points = 20
-            wc_width = 20/no_surf_points # min distance between points on isosurface
-            dump = []
-            for i in range(len(x_out)):
-                if (x_out[i] > -wc_width/2) and (x_out[i] < wc_width/2):
-                    dump.append(i)
-            x_out = np.delete(x_out, dump)
-            result_hist = np.delete(result_hist, dump)
-            # -------------------------------------------------------------
             
             save_dat = np.array([x_out,result_hist])
             save_dat = save_dat.transpose()

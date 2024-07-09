@@ -56,17 +56,18 @@ class Density:
             
             # obtain vector pointing from interface to molecule
             vect = distances.minimize_vectors(inp[i]-WC_inter[loc[i]],box=boxdim)
+            vect_list.append(vect) # unaltered surface -> molecule vector
+
             if loc[i] >= surf_div:
-                vect = -vect
+                vect = -vect # rever vector to
 
             # obtain normal vector at interface
             norm = normals[loc[i]]
 
             # calculate dot product
             prox = np.dot(vect,norm)
-            
             mag.append(prox)
-            vect_list.append(vect)
+            
         
             
         if result == 'mag':

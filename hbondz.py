@@ -38,25 +38,25 @@ class Hbondz:
         angle_array = calc_angles(opos[crit_1a],h1pos[crit_1a],opos[crit_1b],box=boxdim)
         angle_array = np.rad2deg(angle_array)
         
-        crit2 = np.where(angle_array > 150.0)
+        crit2 = np.where(angle_array > 140.0)
         ox_idx = crit_1a[crit2]
         acc_idx = crit_1b[crit2]
-        list_1 = [opos[i] for i in ox_idx]
-        list_2 = [opos[i] for i in acc_idx]
+        olist_1 = [opos[i] for i in ox_idx]
+        olist_2 = [opos[i] for i in acc_idx]
 
         
         angle_array = calc_angles(opos[crit_1a],h2pos[crit_1a],opos[crit_1b],box=boxdim)
         angle_array = np.rad2deg(angle_array)
 
-        crit2 = np.where(angle_array > 150.0)
+        crit2 = np.where(angle_array > 140.0)
         ox_idx = crit_1a[crit2]
         acc_idx = crit_1b[crit2]
-        list_3 = [opos[i] for i in ox_idx]
-        list_4 = [opos[i] for i in acc_idx]
+        olist_3 = [opos[i] for i in ox_idx]
+        olist_4 = [opos[i] for i in acc_idx]
 
-        O_hbond_list = list_1 + list_2 + list_3 + list_4
-        donors = list_1 + list_3
-        acceptors = list_2 + list_4
+        O_hbond_list = olist_1 + olist_2 + olist_3 + olist_4
+        donors = olist_1 + olist_3
+        acceptors = olist_2 + olist_4
 
         dens = Density(self._u)
         dist_tot = dens.proximity(wc,np.array(O_hbond_list),boxdim=boxdim,result='mag',cutoff=False)
@@ -78,22 +78,15 @@ class Hbondz:
         Input consists of indivudual time frames.'''
         #print(don[0],acc[0],time)
 
-        self._u.trajectory[time.astype(int)]
+        self._u.trajectory[time.astype(int)] # need to check this updates the box dimensions. 
+        # print(self._u.dimensions)
         donor = self._u.atoms[don].positions
         acceptor = self._u.atoms[acc].positions
-        # donor = [self._u.atoms[int(i)].position for i in don]
-        # acceptor = [self._u.atoms[int(i)].position for i in acc]
 
-        return (time,donor,acceptor)
+        don_pos,don_counts = np.unique(donor,axis=0,return_counts=True)
+        acc_pos,acc_counts = np.unique(acceptor,axis=0,return_counts=True)
 
-
-        # while counter < time_dat[1]:
-        #     self._u.trajectory[hbond_result[counter].astype(int)] # set the time frame
-        #     time = hbond_result[0].astype(int) # append the time
-        #     donor = self._u.atoms[hbond_result[1].astype(int)].position # append donor positions
-        #     acceptor = self._u.atoms[hbond_result[3].astype(int)].position # append acceptor positions
-        # return (time,donor,acceptor)
-
+        return (time,don_pos,don_counts,acc_pos,acc_counts,donor)
 
 
 
@@ -118,9 +111,6 @@ class Hbondz:
             data[int(i)] = [[],[]]
         self._data = data
 
-        # hbonds will return results of the following form
-        # [frame, donor_ID, H_ID, acceptor_ID, bond_distance, angle]
-
         # sort the results by unique times. 
         output_arr = np.array(hbonds.results.hbonds)
         time = output_arr[:,0]
@@ -134,65 +124,47 @@ class Hbondz:
         don_sort = [don_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(tot_steps)]
         acc_sort = [acc_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(tot_steps)]
 
-
         # parse through frames to accquire donors and acceptors. 
         print('Collecting H Bond data.')
         num_cores = multiprocessing.cpu_count()
         result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(don_sort[i],acc_sort[i],unique_time[i]) for i in tqdm(range(tot_steps))) 
 
-        # print(result[0][1][0])
-        # print(result[0][2][0])
-
-        # time = []
-        # for i in range(len(result)):
-        #     time.append(result[i][0])
-        #     data[int(result[i][0])][0].append(result[i][1])
-        #     data[int(result[i][0])][1].append(result[i][2])
-
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
         result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][1]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][2]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][3]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
 
         dist_don = np.concatenate(result_don).ravel()
+        count_don = np.concatenate([result[i][2] for i in range(tot_steps)]).ravel()
         dist_acc = np.concatenate(result_acc).ravel()
-
-        print('Acquiring background density.')
-        ox_pos = []
-        sel = self._u.select_atoms('name OW OC')
-        for ts in self._u.trajectory[:stop]:
-            ox_pos.append(sel.positions)
-        bkg_dens = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],ox_pos[i],boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
-        bkg_dist = np.concatenate(bkg_dens).ravel()
+        count_acc = np.concatenate([result[i][4] for i in range(tot_steps)]).ravel()
 
         print('Binning.')
-        hist_don,don_range = np.histogram(dist_don,bins=bins,range=[lower,upper])
-        hist_acc,acc_range = np.histogram(dist_acc,bins=bins,range=[lower,upper])
-        hist_bkg,bkg_range = np.histogram(bkg_dist,bins=bins,range=[lower,upper])
         
+        mean_don,edge_don,binnumber = stats.binned_statistic(dist_don,
+                                                       count_don,
+                                                       statistic='mean',
+                                                       bins=bins,
+                                                       range=[lower,upper])
+        
+        mean_acc,edge_acc,binnumber = stats.binned_statistic(dist_acc,
+                                                         count_acc,
+                                                         statistic='mean',
+                                                         bins=bins,
+                                                         range=[lower,upper])
 
-        out_don = []
-        out_acc = []
-        for i in range(len(hist_don)):
-            print(hist_bkg[i])
-            if hist_bkg[i] < 2:
-                out_don.append(0)
-                out_acc.append(0)
-            else:
-                out_don.append(hist_don[i]/hist_bkg[i])
-                out_acc.append(hist_acc[i]/hist_bkg[i])
-        don_range = 0.5*(don_range[1:]+don_range[:-1])
-        acc_range = 0.5*(acc_range[1:]+acc_range[:-1])
+        edge_don = 0.5*(edge_don[1:]+edge_don[:-1])
+        edge_acc = 0.5*(edge_acc[1:]+edge_acc[:-1])
 
-        don_dat = np.array([don_range,out_don])
+        don_dat = np.array([edge_don,mean_don])
         don_dat = don_dat.transpose()
-        acc_dat = np.array([acc_range,out_acc])
+        acc_dat = np.array([edge_acc,mean_acc])
         acc_dat = acc_dat.transpose()
         np.savetxt('./outputs/donor.dat',don_dat)
         np.savetxt('./outputs/acceptor.dat',acc_dat)
 
-        return (hist_don,don_range,hist_acc,acc_range)
+        return (mean_don,edge_don,mean_acc,edge_acc)
 
 
 
