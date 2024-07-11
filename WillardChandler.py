@@ -290,7 +290,7 @@ class WillardChandler:
             if vect == 'WC':
                 result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(self._opos))))
                 lower = lower
-                upper = 0
+                upper = upper
             elif vect == 'z':
                 result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_z)(self._opos[i],self._h1pos[i],self._h2pos[i],self._boxdim[i]) for i in tqdm(range(len(self._opos))))
 
