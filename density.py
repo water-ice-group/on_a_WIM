@@ -47,12 +47,6 @@ class Density:
         vect_list = []
 
         for i in range(len(inp)):
-
-            # define which surface normals to use
-            # if loc[i] < surf_div:
-            #     normals = normals_1
-            # else:
-            #     normals = normals_2   
             
             # obtain vector pointing from interface to molecule
             vect = distances.minimize_vectors(inp[i]-WC_inter[loc[i]],box=boxdim)

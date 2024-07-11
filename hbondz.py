@@ -79,25 +79,34 @@ class Hbondz:
         #print(don[0],acc[0],time)
 
         self._u.trajectory[time.astype(int)] # need to check this updates the box dimensions. 
-        # print(self._u.dimensions)
         donor = self._u.atoms[don].positions
         acceptor = self._u.atoms[acc].positions
 
+        no_don = np.setdiff1d(np.arange(len(self._u.atoms)), don)
+        nul_don = self._u.atoms[no_don].positions
+
+        no_acc = np.setdiff1d(np.arange(len(self._u.atoms)), acc)
+        nul_acc = self._u.atoms[no_acc].positions
+
         don_pos,don_counts = np.unique(donor,axis=0,return_counts=True)
         acc_pos,acc_counts = np.unique(acceptor,axis=0,return_counts=True)
+        nuldon_counts = np.zeros(len(nul_don))
+        nulacc_counts = np.zeros(len(nul_acc))
 
-        return (time,don_pos,don_counts,acc_pos,acc_counts,donor)
 
+        return (time,don_pos,don_counts,acc_pos,acc_counts,nul_don,nuldon_counts,nul_acc,nulacc_counts)
 
 
 
     def hbond_analysis(self,wc,lower,upper,start,stop,boxdim,bins=250):
         hbonds = HydrogenBondAnalysis(universe=self._u,
-                                      donors_sel='name OW OC',
+                                      donors_sel='name OW',
                                       hydrogens_sel='name H',
                                       acceptors_sel='name OW',
                                       d_a_cutoff=3.5,
-                                      d_h_a_angle_cutoff=140)
+                                      d_h_cutoff=1.3,
+                                      d_h_a_angle_cutoff=140,
+                                      update_selections=True)
         if start == None:
             start = 0
         if stop == None:
@@ -132,24 +141,38 @@ class Hbondz:
         print('Running proximity calculations.')
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
-        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][1]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
-        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][3]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps))) 
+        result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][1]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
+        result_nul_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][5]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
+        result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][3]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
+        result_nul_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],np.array(result[i][7]),boxdim[i],upper=self._uz) for i in tqdm(range(tot_steps)))
+
 
         dist_don = np.concatenate(result_don).ravel()
         count_don = np.concatenate([result[i][2] for i in range(tot_steps)]).ravel()
+        dist_nul_don = np.concatenate(result_nul_don).ravel()
+        count_nul_don = np.concatenate([result[i][6] for i in range(tot_steps)]).ravel()
+        dist_don_tot = np.concatenate((dist_don, dist_nul_don)).ravel()
+        count_don_tot = np.concatenate((count_don, count_nul_don)).ravel()
+        
+
         dist_acc = np.concatenate(result_acc).ravel()
         count_acc = np.concatenate([result[i][4] for i in range(tot_steps)]).ravel()
+        dist_nul_acc = np.concatenate(result_nul_acc).ravel()
+        count_nul_acc = np.concatenate([result[i][8] for i in range(tot_steps)]).ravel()
+        dist_acc_tot = np.concatenate((dist_acc, dist_nul_acc)).ravel()
+        count_acc_tot = np.concatenate((count_acc, count_nul_acc)).ravel()
+        
 
         print('Binning.')
         
-        mean_don,edge_don,binnumber = stats.binned_statistic(dist_don,
-                                                       count_don,
+        mean_don,edge_don,binnumber = stats.binned_statistic(dist_don_tot,
+                                                       count_don_tot,
                                                        statistic='mean',
                                                        bins=bins,
                                                        range=[lower,upper])
         
-        mean_acc,edge_acc,binnumber = stats.binned_statistic(dist_acc,
-                                                         count_acc,
+        mean_acc,edge_acc,binnumber = stats.binned_statistic(dist_acc_tot,
+                                                         count_acc_tot,
                                                          statistic='mean',
                                                          bins=bins,
                                                          range=[lower,upper])
