@@ -83,10 +83,17 @@ class Hbondz:
         acceptor = self._u.atoms[acc].positions
 
         no_don = np.setdiff1d(np.arange(len(self._u.atoms)), don)
-        nul_don = self._u.atoms[no_don].positions
+        ag = self._u.atoms[no_don]
+        nul_don = ag.select_atoms('name OW').positions
 
         no_acc = np.setdiff1d(np.arange(len(self._u.atoms)), acc)
-        nul_acc = self._u.atoms[no_acc].positions
+        ag = self._u.atoms[no_acc]
+        nul_acc = ag.select_atoms('name OW').positions
+
+        print(f'Don {len(donor)}')
+        print(f'Acc {len(acceptor)}')
+        print(f'Nul Don {len(nul_don)}')    
+        print(f'Nul Acc {len(nul_acc)}')
 
         don_pos,don_counts = np.unique(donor,axis=0,return_counts=True)
         acc_pos,acc_counts = np.unique(acceptor,axis=0,return_counts=True)
