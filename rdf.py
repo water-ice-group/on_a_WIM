@@ -18,21 +18,18 @@ class RDF:
         p = prox
         d = WC_dist
 
-        try:
-            max_d = np.array([max(d[d < r[i]]) for i in range(len(r))])
+        max_d = np.array([max(d[d < r[i]]) for i in range(len(r))])
 
-            # calculate costheta
-            cos_theta = np.abs(p) / max_d  # p is the adjacent, max_d is the hypotenuse
-            
-            if p < 0: # molecule immersed in the fluid
-                hist_vol = 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta)
-            else: # p >= 0 : molecule on top of water. 
-                hist_vol = 2*np.pi*r**2*(1-cos_theta)
-
-            return hist_vol
+        # calculate costheta
+        cos_theta = np.abs(p) / max_d  # p is the adjacent, max_d is the hypotenuse
         
-        except: # if no pair distance are within the histogram range
-            return None
+        if p < 0: # molecule immersed in the fluid
+            hist_vol = 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta)
+        else: # p >= 0 : molecule on top of water. 
+            hist_vol = 2*np.pi*r**2*(1-cos_theta)
+
+        return hist_vol
+        
 
     def get_rdf(self,pos_a,pos_b,WC,boxdim,hist_range,dr=0.08,crit_dens=0.032):
 
@@ -42,25 +39,30 @@ class RDF:
         dists = dist_mat.flatten()
         dists = [i for i in dists if i < hist_range[1]]
 
-        # calculate proximity of pos_a to the WC interface
-        dens = Density(self._u)
-        prox = dens.proximity(WC,pos_a,boxdim,result='mag')[0] # determine which side of interface
-        WC_dist = distance_array(pos_a,WC,box=boxdim).flatten()
+        if dists is not None:
 
-        # obtain the bins
-        area = boxdim[0]*boxdim[1]
-        bins = np.arange(0.1,np.sqrt(area),dr)
+            # calculate proximity of pos_a to the WC interface
+            dens = Density(self._u)
+            prox = dens.proximity(WC,pos_a,boxdim,result='mag')[0] # determine which side of interface
+            WC_dist = distance_array(pos_a,WC,box=boxdim).flatten()
 
-        # obtain the volume normalization
-        weights = self.get_volume_normalization(dists,prox,WC_dist)
+            # obtain the bins
+            area = boxdim[0]*boxdim[1]
+            bins = np.arange(0.1,np.sqrt(area),dr)
 
-        # calculate the histogram
-        dens, edges = np.histogram(dists, weights=1/weights, bins=bins, density=False)
-        edges = edges[:-1]
-        
-        rdf = dens/dr/crit_dens
+            # obtain the volume normalization
+            weights = self.get_volume_normalization(dists,prox,WC_dist)
 
-        return edges,rdf
+            # calculate the histogram
+            dens, edges = np.histogram(dists, weights=1/weights, bins=bins, density=False)
+            edges = edges[:-1]
+            
+            rdf = dens/dr/crit_dens
+
+            return edges,rdf
+
+        else:
+            return None
 
 
 
