@@ -9,6 +9,7 @@ import multiprocessing
 import numpy as np
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from scipy import stats
 
 # Local application imports
 from interface import WC_Interface
@@ -16,7 +17,7 @@ from utilities import AtomPos
 from density import Density, dens_plot
 from orientation import Orientation, oriPlot
 from hbondz import Hbondz, hbondPlot
-from itim import monolayer,monolayer_properties
+from rdf import RDF
 
 
 
@@ -405,46 +406,45 @@ class WillardChandler:
 
 
     ##########################################################################
-    ################################ ITIM analysis ###########################
+    ########################## Solvation character ###########################
     ##########################################################################
 
-    '''Code for analysing the CO2 monolayer within a certain cutoff. 
-    Perform this analysis last. Can induce some errors in the parallelisation
-    code of other functions when used.'''
+    '''Analyse the local solvation environements of the various carbon species
+    under both interfacial and bulk conditions.'''
 
-    def surf_co2(self,property='rdf',min_cutoff=0,max_cutoff=4,bins=100,norm=True):
+    def surf_RDF(self,bins=75,hist_range=[2,8]):
 
-        '''Calculate properties of CO2 molecules at the interface.
+        rdf = RDF(self._u)
 
-        min_cutoff: minimum cutoff for locatinng CO2. 
-        max_cutoff: maximum cutoff for locating CO2.'''
+        print()
+        print('Calculating RDFs ...')
+        num_cores = multiprocessing.cpu_count()
+        result = Parallel(n_jobs=num_cores)(delayed(rdf.get_rdf)(self._cpos[i],self._opos[i],self._WC[i],self._boxdim[i],dr=0.08,crit_dens=0.032) for i in tqdm(range(len(self._cpos))))
 
-        itim = monolayer(self._u,self._start,self._end)
-        cluster_prop = monolayer_properties(self._u)
+        dist = [i[0] for i in result]
+        out = [i[1] for i in result]
+        dist_array = np.concatenate(dist).ravel()
+        rdf_array = np.concatenate(out).ravel()
 
-        num_cores = int(multiprocessing.cpu_count())
-        if property=='rdf':
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.surf_co2)(self._WC[i],self._cpos[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
-            hist_input = np.concatenate(result).ravel()
-            density,x_range = np.histogram(hist_input,bins=bins,
-                            density=norm,range=(1,10))
-            
-            # Convert to lateral distribution function
-            output = [density[i]/(2*np.pi*x_range[i]) for i in range(len(density))] 
-
-        elif property=='CO_angle':
-            result = Parallel(n_jobs=num_cores,backend='threading')(delayed(cluster_prop.co2_bond_angles_surf)(self._WC[i],self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._boxdim[i],min_cutoff,max_cutoff) for i in tqdm(range(len(self._cpos))))
-            hist_input = np.concatenate(result).ravel()
-            density,x_range = np.histogram(hist_input,bins=bins,
-                            density=norm,range=(5,175))
-            
-            # Divide by isotropic distribution 
-            output = [density[i]/( 0.5*np.sin((x_range[i]*(np.pi / 180))) ) for i in range(len(x_range[:-1]))]
-                
-        save_dat = np.array([x_range[:-1],output])
+        print('Generating histogram(s)')
+        means, edges, binnumber = stats.binned_statistic(dist_array[:].flatten(),
+                                                         rdf_array[:].flatten(),
+                                                         statistic='mean', bins=bins,
+                                                         range=hist_range)
+        
+        x_out = 0.5 * (edges[1:] + edges[:-1])
+        result_hist = means
+        
+        save_dat = np.array([x_out,result_hist])
         save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/surf_co2_{property}_{max_cutoff}.dat',save_dat)
-        return (output,x_range[:-1])
+        np.savetxt(f'./outputs/surf_RDF.dat',save_dat)
+        print('Done.')
+        print()
+        
+        return save_dat
+        
+
+
 
 
     

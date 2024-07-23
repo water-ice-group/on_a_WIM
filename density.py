@@ -53,7 +53,7 @@ class Density:
             vect_list.append(vect) # unaltered surface -> molecule vector
 
             if loc[i] >= surf_div:
-                vect = -vect # rever vector to
+                vect = -vect # reverse vector 
 
             # obtain normal vector at interface
             norm = normals[loc[i]]
