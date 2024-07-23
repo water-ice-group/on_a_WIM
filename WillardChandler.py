@@ -419,7 +419,7 @@ class WillardChandler:
         print()
         print('Calculating RDFs ...')
         num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores)(delayed(rdf.get_rdf)(self._cpos[i],self._opos[i],self._WC[i],self._boxdim[i],dr=0.08,crit_dens=0.032) for i in tqdm(range(len(self._cpos))))
+        result = Parallel(n_jobs=num_cores)(delayed(rdf.get_rdf)(self._cpos[i],self._opos[i],self._WC[i],self._boxdim[i],hist_range,dr=0.08,crit_dens=0.032) for i in tqdm(range(len(self._cpos))))
 
         dist = [i[0] for i in result]
         out = [i[1] for i in result]
