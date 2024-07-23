@@ -18,17 +18,22 @@ class RDF:
         p = prox
         d = WC_dist
 
-        max_d = np.array([max(d[d < r[i]]) for i in range(len(r))])
+        try:
+            max_d = np.array([max(d[d < r[i]]) for i in range(len(r))])
 
-        # calculate costheta
-        cos_theta = np.abs(p) / max_d  # p is the adjacent, max_d is the hypotenuse
+            # calculate costheta
+            cos_theta = np.abs(p) / max_d  # p is the adjacent, max_d is the hypotenuse
+            
+            if p < 0: # molecule immersed in the fluid
+                hist_vol = 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta)
+            else: # p >= 0 : molecule on top of water. 
+                hist_vol = 2*np.pi*r**2*(1-cos_theta)
+
+            return hist_vol
         
-        if p < 0: # molecule immersed in the fluid
-            hist_vol = 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta)
-        else: # p >= 0 : molecule on top of water. 
-            hist_vol = 2*np.pi*r**2*(1-cos_theta)
-
-        return hist_vol
+        except:
+            print(f'Error: {len(r)} {p} {d}')
+            return None
         
 
     def get_rdf(self,pos_a,pos_b,WC,boxdim,hist_range,dr=0.08,crit_dens=0.032):
