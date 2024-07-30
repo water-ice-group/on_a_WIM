@@ -363,7 +363,7 @@ class WillardChandler:
 
 
     # Hydrogen bond counting
-    def Hbonds_run(self,bins=100,lower=-15,upper=0):
+    def Hbonds_run(self,mol_type,bins=100,lower=-15,upper=0):
         
 
         counter = Hbondz(self._u,self._uz)
@@ -372,8 +372,12 @@ class WillardChandler:
 
         print()
         print(f'Obtaining Hbonds.')
-        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,lower,upper,self._start,self._end,self._boxdim,bins)
-
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis(self._WC,
+                                                                       lower,upper,
+                                                                       self._start,self._end,
+                                                                       self._boxdim,
+                                                                       mol_type,
+                                                                       bins)
         self._don = hist_don
         self._donx = don_range
         self._acc = hist_acc
