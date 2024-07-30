@@ -81,30 +81,59 @@ class Hbondz:
         '''Function to parse through the HBonding results.
         Filter the time and the donor and acceptor positions.
         Input consists of indivudual time frames.'''
-
-        self._u.trajectory[time.astype(int)] # need to check this updates the box dimensions. 
-        donor = self._u.atoms[don].positions
-        acceptor = self._u.atoms[acc].positions
-
-        no_don = np.setdiff1d(np.arange(len(self._u.atoms)), don)
-        ag = self._u.atoms[no_don]
-        no_acc = np.setdiff1d(np.arange(len(self._u.atoms)), acc)
-        ag = self._u.atoms[no_acc]
+        
+        self._u.trajectory[time] # need to check this updates the box dimensions. 
 
         if mol_type == 'water':
+
+            donor = self._u.atoms[don].positions
+            acceptor = self._u.atoms[acc].positions
+
+            no_don = np.setdiff1d(np.arange(len(self._u.atoms)), don)
+            ag = self._u.atoms[no_don]
+            no_acc = np.setdiff1d(np.arange(len(self._u.atoms)), acc)
+            ag = self._u.atoms[no_acc]
+
             nul_don = ag.select_atoms('name OW').positions
             nul_acc = ag.select_atoms('name OW').positions
+
+            don_pos,don_counts = np.unique(donor,axis=0,return_counts=True)
+            acc_pos,acc_counts = np.unique(acceptor,axis=0,return_counts=True)
+            nuldon_counts = np.zeros(len(nul_don))
+            nulacc_counts = np.zeros(len(nul_acc))
+
+            return (time,don_pos,don_counts,acc_pos,acc_counts,nul_don,nuldon_counts,nul_acc,nulacc_counts)
+        
         elif mol_type == 'carbon':
-            nul_don = ag.select_atoms('name OC').positions
-            nul_acc = ag.select_atoms('name OC').positions
+            if don is not None:
+                donor = self._u.atoms[don]
+                acceptor = self._u.atoms[acc]
+                don_sel = donor.select_atoms('name OC').positions
+                acc_sel = acceptor.select_atoms('name OC').positions
 
-        don_pos,don_counts = np.unique(donor,axis=0,return_counts=True)
-        acc_pos,acc_counts = np.unique(acceptor,axis=0,return_counts=True)
-        nuldon_counts = np.zeros(len(nul_don))
-        nulacc_counts = np.zeros(len(nul_acc))
+                no_don = np.setdiff1d(np.arange(len(self._u.atoms)), don)
+                ag = self._u.atoms[no_don]
+                no_acc = np.setdiff1d(np.arange(len(self._u.atoms)), acc)
+                ag = self._u.atoms[no_acc]
+                nul_don = ag.select_atoms('name OC').positions
+                nul_acc = ag.select_atoms('name OC').positions
+
+                don_pos,don_counts = np.unique(don_sel,axis=0,return_counts=True)
+                acc_pos,acc_counts = np.unique(acc_sel,axis=0,return_counts=True)
+                nuldon_counts = np.zeros(len(nul_don))
+                nulacc_counts = np.zeros(len(nul_acc))
+            else:
+                nul_don = self._u.select_atoms('name OC').positions
+                nul_acc = self._u.select_atoms('name OC').positions
+                nuldon_counts = np.zeros(len(nul_don))
+                nulacc_counts = np.zeros(len(nul_acc))
+                don_pos = []
+                don_counts = []
+                acc_pos = []
+                acc_counts = []
 
 
-        return (time,don_pos,don_counts,acc_pos,acc_counts,nul_don,nuldon_counts,nul_acc,nulacc_counts)
+            return (time,don_pos,don_counts,acc_pos,acc_counts,nul_don,nuldon_counts,nul_acc,nulacc_counts)            
 
 
 
@@ -202,22 +231,39 @@ class Hbondz:
         don_id = output_arr[:,1].astype(int)
         acc_id = output_arr[:,3].astype(int)
 
-        # extract uniques time frames and count them
+        # organise in order of time. 
+        sorted_indices = np.argsort(time)
+        time = time[sorted_indices]
+        don_id = don_id[sorted_indices]
+        acc_id = acc_id[sorted_indices]
 
+        # extract uniques time frames and count them
         unique_time, counts = np.unique(time, return_counts=True)
         cumulative_counts = np.cumsum(counts)
         cumulative_counts = np.insert(cumulative_counts, 0, 0)
 
         print(f'Number of unique time frames: {unique_time}')
+
+        don_sort = np.array([don_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(len(unique_time))])
+        acc_sort = np.array([acc_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(len(unique_time))])
+
+        no_bond_frames = [t for t in range(tot_steps) if t not in unique_time]
+
+        don_arr = np.zeros(tot_steps, dtype=object)  # Use dtype=object to store lists
+        don_arr[no_bond_frames] = None
+        don_arr[unique_time.astype(int)] = don_sort  # Ensure unique_time is of integer type
+        acc_arr = np.zeros(tot_steps, dtype=object)  # Use dtype=object to store lists
+        acc_arr[no_bond_frames] = None
+        acc_arr[unique_time.astype(int)] = acc_sort  # Ensure unique_time is of integer type
+
+        # don_sort contains the ids of the atoms, sorted by unique time. 
+        # acc_sort contains the ids of the acceptors, sorted by unique time.
         
-        don_sort = [don_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(len(unique_time))]
-        acc_sort = [acc_id[cumulative_counts[i]:cumulative_counts[i+1]] for i in range(len(unique_time))]
-
-
         # parse through frames to accquire donors and acceptors. 
+        # for setting zero, need to be parsing through each of the frames and assigning zero. 
         print('Collecting H Bond data.')
         num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(don_sort[i],acc_sort[i],unique_time[i],mol_type) for i in tqdm(range(len(unique_time)))) 
+        result = Parallel(n_jobs=num_cores)(delayed(self.parse_frames)(don_arr[i],acc_arr[i],i,mol_type) for i in tqdm(range(tot_steps))) 
 
         # run proximity calcs
         print('Running proximity calculations.')
