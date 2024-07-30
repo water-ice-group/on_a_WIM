@@ -76,7 +76,6 @@ class Hbondz:
         '''Function to parse through the HBonding results.
         Filter the time and the donor and acceptor positions.
         Input consists of indivudual time frames.'''
-        #print(don[0],acc[0],time)
 
         self._u.trajectory[time.astype(int)] # need to check this updates the box dimensions. 
         donor = self._u.atoms[don].positions
@@ -89,11 +88,6 @@ class Hbondz:
         no_acc = np.setdiff1d(np.arange(len(self._u.atoms)), acc)
         ag = self._u.atoms[no_acc]
         nul_acc = ag.select_atoms('name OW').positions
-
-        print(f'Don {len(donor)}')
-        print(f'Acc {len(acceptor)}')
-        print(f'Nul Don {len(nul_don)}')    
-        print(f'Nul Acc {len(nul_acc)}')
 
         don_pos,don_counts = np.unique(donor,axis=0,return_counts=True)
         acc_pos,acc_counts = np.unique(acceptor,axis=0,return_counts=True)
@@ -133,7 +127,8 @@ class Hbondz:
         don_id = output_arr[:,1].astype(int)
         acc_id = output_arr[:,3].astype(int)
 
-        unique_time, counts = np.unique(time, return_counts=True) # extract uniques time frames and count them.
+        # extract uniques time frames and count them
+        unique_time, counts = np.unique(time, return_counts=True)
         cumulative_counts = np.cumsum(counts)
         cumulative_counts = np.insert(cumulative_counts, 0, 0)
         

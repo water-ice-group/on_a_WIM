@@ -308,12 +308,8 @@ class WillardChandler:
         print('Generating histogram(s)')
         dist_array = np.concatenate(dist).ravel()
         Theta_array = np.concatenate(theta).ravel()
-        print(dist[0])
-        print(theta[0])
         
         if histtype=='time':
-            print(len(dist_array))
-            print(len(Theta_array))
             result = ori._getHistogram(dist_array,
                                     Theta_array,
                                     bins=bins,hist_range=[lower,upper])
@@ -412,14 +408,14 @@ class WillardChandler:
     '''Analyse the local solvation environements of the various carbon species
     under both interfacial and bulk conditions.'''
 
-    def surf_RDF(self,bins=75,hist_range=[2,8]):
+    def surf_RDF(self,bins=75,depth=[-8,4],hist_range=[2,8]):
 
         rdf = RDF(self._u)
 
         print()
         print('Calculating RDFs ...')
         num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores)(delayed(rdf.get_rdf)(self._cpos[i],self._opos[i],self._WC[i],self._boxdim[i],hist_range,dr=0.08,crit_dens=0.032) for i in tqdm(range(len(self._cpos))))
+        result = Parallel(n_jobs=num_cores)(delayed(rdf.get_rdf)(self._cpos[i],self._opos[i],self._WC[i],self._boxdim[i],depth,dr=0.08,crit_dens=0.032) for i in tqdm(range(len(self._cpos))))
 
         dist = [i[0] for i in result]
         out = [i[1] for i in result]
