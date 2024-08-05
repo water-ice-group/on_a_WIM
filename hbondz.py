@@ -92,7 +92,7 @@ class Hbondz:
                                 hydrogens_sel='name H',
                                 acceptors_sel='name OW',
                                 d_a_cutoff=3.5,
-                                d_h_cutoff=1.3,
+                                d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=140,
                                 update_selections=True)
             hbonds.run(start=start,stop=stop)
@@ -108,7 +108,7 @@ class Hbondz:
                                 hydrogens_sel='name H',
                                 acceptors_sel='name OW',
                                 d_a_cutoff=3.5,
-                                d_h_cutoff=1.3,
+                                d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=140,
                                 update_selections=True)
             hbonds_1.run(start=start,stop=stop)
@@ -117,7 +117,7 @@ class Hbondz:
                                 hydrogens_sel='name H',
                                 acceptors_sel='name OC',
                                 d_a_cutoff=3.5,
-                                d_h_cutoff=1.3,
+                                d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=140,
                                 update_selections=True)
             hbonds_2.run(start=start,stop=stop)
@@ -359,9 +359,6 @@ class Hbondz:
 
         return (t,pos,counts,nul_t,nul_pos,nul_counts)
 
-
-
-   
 
 
     def hbond_analysis_carbon(self,wc,lower,upper,start,stop,boxdim,bins=250):
