@@ -379,6 +379,7 @@ class WillardChandler:
                                                                         bins)
         elif mol_type == 'carbon':
             hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_carbon(self._WC,
+                                                                                  self._cpos,
                                                                         lower,upper,
                                                                         self._start,self._end,
                                                                         self._boxdim,
