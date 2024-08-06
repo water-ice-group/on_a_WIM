@@ -280,8 +280,9 @@ class Hbondz:
             # if len(nul_pos) > 0: 
             #     nuldon_counts = np.zeros(len(nul_pos))
             # else: # if all OC atoms are involved in hbonds
-            #     nul_pos = []
-            #     nuldon_counts = []
+            
+            nul_pos = []
+            nuldon_counts = []
 
         
         else: # if no hbond is registered in frame
@@ -385,8 +386,10 @@ class Hbondz:
         # run proximity calcs
         dens = Density(self._u)
         num_cores = multiprocessing.cpu_count()
+        print('Running proximity NUL calculations.')
         result_nul_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[nult_don[i]],np.array(nul_don_pos[i]),boxdim[nult_don[i]],upper=self._uz) for i in tqdm(range(len(nult_don))))
         result_nul_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[nult_acc[i]],np.array(nul_acc_pos[i]),boxdim[nult_acc[i]],upper=self._uz) for i in tqdm(range(len(nult_acc))))
+        print('Running proximity calculations.')
         if len(t_don) > 0:
             result_don = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[t_don[i]],np.array(don_pos[i]),boxdim[t_don[i]],upper=self._uz) for i in tqdm(range(len(t_don))))
             dist_don_tot = np.concatenate((np.concatenate(result_don).ravel(), np.concatenate(result_nul_don).ravel())).ravel()
@@ -400,7 +403,10 @@ class Hbondz:
                 dist_acc_tot = np.concatenate((np.concatenate(result_acc).ravel(), np.concatenate(result_nul_acc).ravel())).ravel()
             except:
                 dist_acc_tot = np.concatenate(result_acc).ravel()
-            count_acc_tot = np.concatenate((np.concatenate(acc_counts).ravel(), np.concatenate(nul_acc_counts).ravel())).ravel()
+            try:
+                count_acc_tot = np.concatenate((np.concatenate(acc_counts).ravel(), np.concatenate(nul_acc_counts).ravel())).ravel()
+            except:
+                count_acc_tot = np.concatenate(acc_counts).ravel()
         else:
             dist_acc_tot = np.concatenate(result_nul_acc).ravel()
             count_acc_tot = np.concatenate(nul_acc_counts).ravel()
