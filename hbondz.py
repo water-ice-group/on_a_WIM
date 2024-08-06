@@ -273,15 +273,15 @@ class Hbondz:
             sel = ag.select_atoms('name OC').positions
             pos,counts = np.unique(sel,axis=0,return_counts=True)
 
-            excl = np.setdiff1d(np.arange(len(self._u.atoms)), atom_ids) # indexes of non-donors
-            ag = self._u.atoms[excl] # select non-donors
-            nul_pos = ag.select_atoms('name OC').positions # locate non-donor positions 
+            # excl = np.setdiff1d(np.arange(len(self._u.atoms)), atom_ids) # indexes of non-donors
+            # ag = self._u.atoms[excl] # select non-donors
+            # nul_pos = ag.select_atoms('name OC').positions # locate non-donor positions 
 
-            if len(nul_pos) > 0: 
-                nuldon_counts = np.zeros(len(nul_pos))
-            else: # if all OC atoms are involved in hbonds
-                nul_pos = []
-                nuldon_counts = []
+            # if len(nul_pos) > 0: 
+            #     nuldon_counts = np.zeros(len(nul_pos))
+            # else: # if all OC atoms are involved in hbonds
+            #     nul_pos = []
+            #     nuldon_counts = []
 
         
         else: # if no hbond is registered in frame
@@ -396,7 +396,10 @@ class Hbondz:
             count_don_tot = np.concatenate(nul_don_counts).ravel()
         if len(t_acc) > 0:
             result_acc = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[t_acc[i]],np.array(acc_pos[i]),boxdim[t_acc[i]],upper=self._uz) for i in tqdm(range(len(t_acc))))
-            dist_acc_tot = np.concatenate((np.concatenate(result_acc).ravel(), np.concatenate(result_nul_acc).ravel())).ravel()
+            try:
+                dist_acc_tot = np.concatenate((np.concatenate(result_acc).ravel(), np.concatenate(result_nul_acc).ravel())).ravel()
+            except:
+                dist_acc_tot = np.concatenate(result_acc).ravel()
             count_acc_tot = np.concatenate((np.concatenate(acc_counts).ravel(), np.concatenate(nul_acc_counts).ravel())).ravel()
         else:
             dist_acc_tot = np.concatenate(result_nul_acc).ravel()
