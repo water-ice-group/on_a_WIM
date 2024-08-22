@@ -88,7 +88,7 @@ class Density:
         # Calculate the normal vectors using cross product
         normals[:, 0] = -dy[1:-1]  # x component of the normal vector
         normals[:, 1] = dx[1:-1]   # y component of the normal vector
-        normals[:, 2] = z          # z component of the normal vector
+        normals[:, 2] = z          # z vector. Not true normal vector. Useful for directionality of distances. 
 
         # Normalize the normal vectors
         magnitudes = np.sqrt(np.sum(normals**2, axis=1))
