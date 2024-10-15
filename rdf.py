@@ -81,8 +81,13 @@ class RDF:
             cos_theta = np.where(np.abs(p) < r, np.abs(p)/r, 1)
             hist_vol = 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta)
         else: # p >= 0 : molecule on top of water.
-            cos_theta = np.where(np.abs(p) < r, np.abs(p)/r, 0.999)            
+            cos_theta = np.where(np.abs(p) < r, np.abs(p)/r, 0.99)            
             hist_vol = np.where(pro < 0, 2*np.pi*r**2*(1-cos_theta), 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta))
+            #hist_vol = 2*np.pi*r**2*(1-cos_theta)
+
+        # cos_theta = np.where(np.abs(p) < r, np.abs(p)/r, 1)
+        # hist_vol = 4*np.pi*r**2 - 2*np.pi*r**2*(1-cos_theta)
+
 
         return hist_vol
 

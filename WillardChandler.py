@@ -146,7 +146,11 @@ class WillardChandler:
     ##########################################################################
         
     # Density
-    def Density_run(self,atom_type,bins=400,lower=-10,upper=10):
+    def Density_run(self,atom_type,bins=400,
+                    lower=-10,upper=10,
+                    select_frames=None,
+                    carbon_spec=None,
+                    list_dist=False):
 
 
         """Computes the density of molecules relative to the water-carbon interface.
@@ -180,12 +184,25 @@ class WillardChandler:
         print(f'Obtaining {atom_type} density.')
         num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj)))) # parse through frames
+        if select_frames == None:
+            result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj)))) # parse through frames
+        else:
+            result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(select_frames))
         self._dens_result = result
         print('Generating histogram(s)')
 
         hist_input = np.concatenate(result).ravel()
+
+        if list_dist == True:
+            np.savetxt(f'./outputs/hist_TOT_{atom_type}.dat',hist_input)
+
+        if carbon_spec == None:
+            np.savetxt(f'./outputs/hist_{atom_type}.dat',hist_input)
+        elif carbon_spec != None:
+            np.savetxt('./outputs/hist_input_' + carbon_spec + '.dat',hist_input)
         
+
+
         density,bin_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
 
         x_range = [(bin_range[i]+bin_range[i+1])/2 for i in range(len(bin_range)-1)]
@@ -196,12 +213,19 @@ class WillardChandler:
         if atom_type == 'OW':
             mol_dens = 18.01528
         elif atom_type == 'C':
-            mol_dens = 44.0095 # need to alter this 
+            if carbon_spec == None or carbon_spec == 'CO2':
+                mol_dens = 44.0095 # need to adapt for each type of carbon species.
+            elif carbon_spec == 'BiC':
+                mol_dens = 61.016
+            elif carbon_spec == 'CA' or carbon_spec == 'TS':
+                mol_dens = 62.024
         elif atom_type == 'H3O':
             mol_dens = 19.023
-        result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
 
-
+        if select_frames == None:
+            result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
+        else:
+            result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(select_frames)) * 10**6) for i in density]
 
         save_dat = np.array([x_range,result_hist])
         save_dat = save_dat.transpose()
