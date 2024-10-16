@@ -31,6 +31,20 @@ class AtomPos:
     
         return (opos,h1pos,h2pos,cpos,ocpos1,ocpos2,box_dim)
     
+    def prepare_undefined(self):
+        
+        if os.path.isdir('./outputs'):
+            print('Output directory detected.')
+        else:
+            os.mkdir('./outputs')
+
+        print()
+        print('Obtaining atom coordinates.')
+        opos, hpos, cpos, ocpos, box_dim = self.pos_Oc_undefined()
+        print()
+    
+        return (opos,hpos,cpos,ocpos,box_dim)
+    
     def prepare_unorg(self):
         
         if os.path.isdir('./outputs'):
@@ -88,6 +102,44 @@ class AtomPos:
         return (opos_traj, h1_traj, h2_traj, cpos_traj, ocpos_traj, hcpos_traj, box_dim)
 
 
+    def pos_Oc_undefined(self):
+        
+        '''Load trajectory for metaD run, where OC bond is not defined.'''
+        
+        opos_traj = []
+        hpos_traj = []
+        cpos_traj = []
+        ocpos_traj = []
+        box_dim = []
+        length = len(self._u.trajectory[self._start:self._end])
+        print('Parsing through frames.')
+        print(f'Total: {length}.')
+        
+        for ts in self._u.trajectory[self._start:self._end]:
+
+            cpos = self._u.select_atoms('name' + ' C').positions
+            cpos_traj.append(cpos)
+
+            co_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
+                                    self._u.select_atoms('name' + ' O').positions, 
+                                    box=self._u.dimensions)
+            bonded_O = np.any(co_dist < 1.6, axis=1)
+            ocpos = self._u.select_atoms('name' + ' O')[bonded_O].positions
+            ocpos_traj.append(ocpos)
+
+            unbonded_O = np.all(co_dist > 1.6, axis=1)
+            opos = self._u.select_atoms('name' + ' O')[unbonded_O].positions
+            opos_traj.append(opos)
+
+            hpos = self._u.select_atoms('name' + ' H').positions
+            opos_traj.append(opos)
+            hpos_traj.append(hpos)
+            box_dim.append(self._u.dimensions)
+        
+        return (opos_traj, hpos_traj, cpos_traj, ocpos_traj, box_dim)
+
+
+
     def positions_unorg(self):
 
         '''Load trajectory for water. Account for hydronium ions (cannot perform molecule aggregation).'''
@@ -119,6 +171,7 @@ class AtomPos:
         
         return (opos_traj, hpos_traj, h3opos_traj, box_dim)
     
+
 
 
     def hydronium_crit(self, dist_arr):
