@@ -76,7 +76,7 @@ class Hbondz:
     #################################################################################
 
 
-    def hbond_count(self,start,stop,mol_type):
+    def hbond_count(self,start,stop,mol_type,frame_select=None):
 
         '''Run hydrogen bond analysis on the trajectory.
         Define what molecule, water or cabon-species, to track
@@ -136,7 +136,8 @@ class Hbondz:
                                 d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=150,
                                 update_selections=True)
-            hbonds_1.run(start=start,stop=stop)
+            hbonds_1.run(frames=frame_select)
+
             hbonds_2 = HydrogenBondAnalysis(universe=self._u, # acceptor
                                 donors_sel='name O and not around 1.6 name C',
                                 hydrogens_sel='name H',
@@ -145,7 +146,7 @@ class Hbondz:
                                 d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=150,
                                 update_selections=True)
-            hbonds_2.run(start=start,stop=stop)
+            hbonds_2.run(frames=frame_select)
 
             return (hbonds_1.results.hbonds,hbonds_2.results.hbonds)
 
@@ -359,7 +360,7 @@ class Hbondz:
         if org == True:
             hbonds_don,hbonds_acc = self.hbond_count(start,stop,'carbon')
         else:
-            hbonds_don,hbonds_acc = self.hbond_count(start,stop,'carbon_unorg')
+            hbonds_don,hbonds_acc = self.hbond_count(start,stop,'carbon_unorg',frame_select)
         
 
         # organise the data
