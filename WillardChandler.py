@@ -55,7 +55,7 @@ class WillardChandler:
 
 
 
-    def generate(self,grid=400,new_inter=True,focus='water'):
+    def generate(self,grid=400,new_inter=True,project='standard'):
 
         '''Generate the WC interface.'''
         
@@ -66,24 +66,19 @@ class WillardChandler:
         print()
 
         self._grid = grid
-
-        if focus=='water':       # organise waters by closest hydrogens. Returns list organised by molecule. 
-            pos = AtomPos(self._u,self._start,self._end)
+        pos = AtomPos(self._u,self._start,self._end)
+        if project=='standard':       # organise waters by closest hydrogens. Returns list organised by molecule. 
             self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
             opos_traj = self._opos
-        elif focus=='metaD':    # special case where oxygens can exchange between water and carbon molecule.  
-            pos = AtomPos(self._u,self._start,self._end)
+        elif project=='metaD':    # special case where oxygens can exchange between water and carbon molecule. No specific Ox labels.  
             self._opos,self._hpos,self._cpos,self._ocpos,self._boxdim = pos.prepare_undefined()
-            opos_traj = self._cpos
-        elif focus=='h3o+':    # no organisation of waters. Extract list of oxygens and hydrogens. Needed for hydronium/hydroxide systems. 
-            pos = AtomPos(self._u,self._start,self._end)
+            opos_traj = self._opos
+        elif project=='h3o+':    # no organisation of waters. Extract list of oxygens and hydrogens. Needed for hydronium/hydroxide systems. 
             self._opos,self._hpos,self._h3opos,self._boxdim = pos.prepare_unorg()
             opos_traj = self._opos
 
-
         inter = WC_Interface(self._u,grid,self._lz,self._uz)
         
-
         if new_inter==True: # generate new interfacial surface
             num_cores = multiprocessing.cpu_count()//2
             print()
@@ -379,12 +374,12 @@ class WillardChandler:
 
 
     ##########################################################################
-    ########################## Hbonding and Solvation ########################
+    ######################## Hbonding and Coordination #######################
     ##########################################################################
 
 
     # Hydrogen bond counting
-    def Hbonds_run(self,mol_type,bins=100,lower=-15,upper=0):
+    def Hbonds_run(self,mol_type,bins=100,lower=-8,upper=2,org=False,frame_select=None,filename=None):
         
         counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
@@ -404,7 +399,9 @@ class WillardChandler:
                                                                         lower,upper,
                                                                         self._start,self._end,
                                                                         self._boxdim,
-                                                                        bins)
+                                                                        bins,org=org,
+                                                                        frame_select=frame_select,
+                                                                        filename=filename)
         self._don = hist_don
         self._donx = don_range
         self._acc = hist_acc
@@ -412,14 +409,15 @@ class WillardChandler:
 
         return ((hist_don,don_range),(hist_acc,acc_range))
     
-    def coordination_number(self,groupA='OC',groupB='OW',frame_select=None,bins=100,lower=-15,upper=0):
+    def coordination_number(self,groupA='C',groupB='OW',r_0=3.5,filename=None,frame_select=None,bins=100,lower=-8,upper=2):
         cn_counter = CN(self._u)
 
-        if groupA=='OC':
+        if groupA == 'C':
+            traj_A = self._cpos
+        elif groupA == 'OC':
             traj_A = self._ocpos
     
-        if groupB=='OW':
-            traj_B = self._opos
+        traj_B = self._opos
 
         dens = Density(self._u)
 
@@ -438,21 +436,25 @@ class WillardChandler:
         num_cores = multiprocessing.cpu_count()
         print('Calculating coordination number ...')
         if frame_select == None:
-            result = Parallel(n_jobs=num_cores)(delayed(cn_counter.coordination_number)(traj_A[i],traj_B[i],self._boxdim[i],lower,upper) for i in tqdm(range(len(traj_A))))
+            result = Parallel(n_jobs=num_cores)(delayed(cn_counter.coordination_number)(traj_A[i],traj_B[i],self._boxdim[i],r_0) for i in tqdm(range(len(traj_A))))
         else:
-            result = Parallel(n_jobs=num_cores)(delayed(cn_counter.coordination_number)(traj_A[i],traj_B[i],self._boxdim[i],lower,upper) for i in tqdm(frame_select))
+            result = Parallel(n_jobs=num_cores)(delayed(cn_counter.coordination_number)(traj_A[i],traj_B[i],self._boxdim[i],r_0) for i in tqdm(frame_select))
         print('Generating histogram(s)')
-        hist_input = np.concatenate(result).ravel()
+        print(len(result))
+        hist_input = result
         
         means,edges,binnumber = stats.binned_statistic(distance_inp[:].flatten(),
-                                                        hist_input[:].flatten(),
+                                                        hist_input[:],
                                                         statistic='mean', bins=bins,
                                                         range=[lower,upper])
         
         edges = 0.5 * (edges[1:] + edges[:-1])
         hist = np.array([edges, means])
         hist = hist.transpose()
-        np.savetxt(f'./outputs/coordination_number.dat',hist)
+        if filename == None:
+            np.savetxt(f'./outputs/coordination_number.dat',hist)
+        else:
+            np.savetxt(f'./outputs/coordination_number_{filename}.dat',hist)
 
         return hist
 

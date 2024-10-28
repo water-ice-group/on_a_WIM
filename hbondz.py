@@ -123,6 +123,31 @@ class Hbondz:
             hbonds_2.run(start=start,stop=stop)
 
             return (hbonds_1.results.hbonds,hbonds_2.results.hbonds)
+        
+        elif mol_type == 'carbon_unorg':
+
+            # need to perform two different analyses for the different OW-OC combinations. 
+
+            hbonds_1 = HydrogenBondAnalysis(universe=self._u, # donor 
+                                donors_sel='name O and around 1.6 name C',
+                                hydrogens_sel='name H',
+                                acceptors_sel='name O and not around 1.6 name C',
+                                d_a_cutoff=3.5,
+                                d_h_cutoff=1.2,
+                                d_h_a_angle_cutoff=150,
+                                update_selections=True)
+            hbonds_1.run(start=start,stop=stop)
+            hbonds_2 = HydrogenBondAnalysis(universe=self._u, # acceptor
+                                donors_sel='name O and not around 1.6 name C',
+                                hydrogens_sel='name H',
+                                acceptors_sel='name O and around 1.6 name C',
+                                d_a_cutoff=3.5,
+                                d_h_cutoff=1.2,
+                                d_h_a_angle_cutoff=150,
+                                update_selections=True)
+            hbonds_2.run(start=start,stop=stop)
+
+            return (hbonds_1.results.hbonds,hbonds_2.results.hbonds)
 
 
 
@@ -319,7 +344,7 @@ class Hbondz:
 
 
 
-    def hbond_analysis_carbon(self,wc,cpos,lower,upper,start,stop,boxdim,bins=250):
+    def hbond_analysis_carbon(self,wc,cpos,lower,upper,start,stop,boxdim,bins,org,frame_select,filename):
 
         '''Run hydrogen bond analysis on the trajectory.'''
 
@@ -331,7 +356,10 @@ class Hbondz:
         self._ttot = tot_steps - 1
 
         # perform MDAnalysis hydrogen bond count
-        hbonds_don,hbonds_acc = self.hbond_count(start,stop,'carbon')
+        if org == True:
+            hbonds_don,hbonds_acc = self.hbond_count(start,stop,'carbon')
+        else:
+            hbonds_don,hbonds_acc = self.hbond_count(start,stop,'carbon_unorg')
         
 
         # organise the data
@@ -345,7 +373,10 @@ class Hbondz:
         print(len(wc))
         print(len(cpos))
         print(len(boxdim))
-        result_dist = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],cpos[i],boxdim[i],upper=self._uz) for i in tqdm(range(self._ttot)))
+        if frame_select != None:
+            result_dist = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],cpos[i],boxdim[i],upper=self._uz) for i in tqdm(range(self._ttot)))
+        else:
+            result_dist = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],cpos[i],boxdim[i],upper=self._uz) for i in tqdm(frame_select))
         carbon_pos = np.concatenate(result_dist).ravel()
 
         # analyse stats
@@ -368,8 +399,13 @@ class Hbondz:
         don_dat = don_dat.transpose()
         acc_dat = np.array([edge_acc,mean_acc])
         acc_dat = acc_dat.transpose()
-        np.savetxt(f'./outputs/carbon_donor.dat',don_dat)
-        np.savetxt(f'./outputs/carbon_acceptor.dat',acc_dat)
+
+        if filename != None:
+            np.savetxt(f'./outputs/{filename}_donor.dat',don_dat)
+            np.savetxt(f'./outputs/{filename}_acceptor.dat',acc_dat)
+        else:
+            np.savetxt(f'./outputs/carbon_donor.dat',don_dat)
+            np.savetxt(f'./outputs/carbon_acceptor.dat',acc_dat)
 
         return (mean_don,edge_don,mean_acc,edge_acc)
 
@@ -379,19 +415,26 @@ class CN:
     def __init__(self,universe):
         self._u = universe
 
-    def rational_switch(self,r_list,r_0=2.0,nn=6,mm=12):
+    def rational_switch(self,r_list,r_0,nn,mm):
         '''Rational switch function for the coordination number.'''
         
         func = (1 - (r_list/r_0)**nn)/(1 - (r_list/r_0)**mm)
         return func
     
-    def coordination_number(self,pos_A,pos_B,boxdim):
+    def simple_switch(self,r_list,r_0):
+        '''Simple switch function for the coordination number.'''
+        
+        func = np.where(r_list < r_0, 1, 0)
+        return func
+    
+    def coordination_number(self,pos_A,pos_B,boxdim,r_0=2.0,nn=12,mm=24):
         '''Calculate the coordination number between two groups of atoms.'''
         
         r_array = distance_array(pos_A,pos_B,box=boxdim)
         r_list = np.concatenate(r_array).ravel()
 
-        coord = self.rational_switch(r_list,r_0=3.44,nn=6,mm=12)
+        coord = self.rational_switch(r_list,r_0,nn,mm)
+        #coord = self.simple_switch(r_list,r_0)
         sum_coord = np.sum(coord)
         
         return sum_coord

@@ -123,17 +123,18 @@ class AtomPos:
             co_dist = distance_array(self._u.select_atoms('name' + ' C').positions, # distance array loaded from module
                                     self._u.select_atoms('name' + ' O').positions, 
                                     box=self._u.dimensions)
-            bonded_O = np.any(co_dist < 1.6, axis=1)
+            
+            bonded_O = np.where(co_dist[0] < 1.6)[0]
             ocpos = self._u.select_atoms('name' + ' O')[bonded_O].positions
             ocpos_traj.append(ocpos)
 
-            unbonded_O = np.all(co_dist > 1.6, axis=1)
+            unbonded_O = np.where(co_dist[0] > 1.6)[0]
             opos = self._u.select_atoms('name' + ' O')[unbonded_O].positions
             opos_traj.append(opos)
 
             hpos = self._u.select_atoms('name' + ' H').positions
-            opos_traj.append(opos)
             hpos_traj.append(hpos)
+
             box_dim.append(self._u.dimensions)
         
         return (opos_traj, hpos_traj, cpos_traj, ocpos_traj, box_dim)
