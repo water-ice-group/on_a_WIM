@@ -136,7 +136,8 @@ class Hbondz:
                                 d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=150,
                                 update_selections=True)
-            hbonds_1.run(frames=frame_select)
+            hbonds_1.run()
+            hbonds_1.results.hbonds = [hbond for hbond in hbonds_1.results.hbonds if hbond[0] in frame_select]
 
             hbonds_2 = HydrogenBondAnalysis(universe=self._u, # acceptor
                                 donors_sel='name O and not around 1.6 name C',
@@ -146,7 +147,8 @@ class Hbondz:
                                 d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=150,
                                 update_selections=True)
-            hbonds_2.run(frames=frame_select)
+            hbonds_2.run()
+            hbonds_2.results.hbonds = [hbond for hbond in hbonds_2.results.hbonds if hbond[0] in frame_select]
 
             return (hbonds_1.results.hbonds,hbonds_2.results.hbonds)
 
