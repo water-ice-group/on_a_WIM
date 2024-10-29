@@ -148,7 +148,8 @@ class WillardChandler:
     def Density_run(self,atom_type,bins=400,
                     lower=-10,upper=10,
                     select_frames=None,
-                    carbon_spec=None):
+                    carbon_spec=None,
+                    time_series=False):
 
 
         """Computes the density of molecules relative to the water-carbon interface.
@@ -192,8 +193,8 @@ class WillardChandler:
         hist_input = np.concatenate(result).ravel()
 
         # output total distance if looking at different types of carbon species
-        if carbon_spec != None:
-            np.savetxt('./outputs/hist_input_' + carbon_spec + '.dat',hist_input)
+        if time_series == True:
+            np.savetxt('./outputs/time_dist.dat',hist_input)
 
         density,bin_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
 

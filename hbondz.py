@@ -150,7 +150,7 @@ class Hbondz:
             hbonds_2.run()
             hbonds_2.results.hbonds = [hbond for hbond in hbonds_2.results.hbonds if hbond[0] in frame_select]
 
-            return (hbonds_1.results.hbonds,hbonds_2.results.hbonds)
+            return (np.array(hbonds_1.results.hbonds),np.array(hbonds_2.results.hbonds))
 
 
 
