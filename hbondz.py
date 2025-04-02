@@ -129,29 +129,31 @@ class Hbondz:
             # need to perform two different analyses for the different OW-OC combinations. 
 
             hbonds_1 = HydrogenBondAnalysis(universe=self._u, # donor 
-                                donors_sel='name O and around 1.6 name C',
+                                donors_sel='name O and around 1.8 name C',
                                 hydrogens_sel='name H',
-                                acceptors_sel='name O and not around 1.6 name C',
+                                acceptors_sel='name O and not around 1.8 name C',
                                 d_a_cutoff=3.5,
                                 d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=150,
                                 update_selections=True)
             hbonds_1.run()
-            hbonds_1.results.hbonds = [hbond for hbond in hbonds_1.results.hbonds if hbond[0] in frame_select]
+            # hbonds_1.results.hbonds = [hbond for hbond in hbonds_1.results.hbonds if hbond[0] in frame_select]
+            hbonds_1.results.hbonds = hbonds_1.results.hbonds[np.isin(hbonds_1.results.hbonds[:, 0], frame_select)]
 
             hbonds_2 = HydrogenBondAnalysis(universe=self._u, # acceptor
-                                donors_sel='name O and not around 1.6 name C',
+                                donors_sel='name O and not around 1.8 name C',
                                 hydrogens_sel='name H',
-                                acceptors_sel='name O and around 1.6 name C',
+                                acceptors_sel='name O and around 1.8 name C',
                                 d_a_cutoff=3.5,
                                 d_h_cutoff=1.2,
                                 d_h_a_angle_cutoff=150,
                                 update_selections=True)
             hbonds_2.run()
-            hbonds_2.results.hbonds = [hbond for hbond in hbonds_2.results.hbonds if hbond[0] in frame_select]
+            # hbonds_2.results.hbonds = [hbond for hbond in hbonds_2.results.hbonds if hbond[0] in frame_select]
+            hbonds_2.results.hbonds = hbonds_2.results.hbonds[np.isin(hbonds_2.results.hbonds[:, 0], frame_select)]
 
-            return (np.array(hbonds_1.results.hbonds),np.array(hbonds_2.results.hbonds))
-
+            # return (np.array(hbonds_1.results.hbonds),np.array(hbonds_2.results.hbonds))
+            return (hbonds_1.results.hbonds,hbonds_2.results.hbonds)
 
 
 
@@ -323,7 +325,7 @@ class Hbondz:
 
     
 
-    def organize_data(self,hbond_data,htype):
+    def organize_data(self,hbond_data,htype,frame_select):
 
         '''Organise the data for the carbon hbond analysis.'''
 
@@ -336,18 +338,25 @@ class Hbondz:
             atom_id = arr[:,3].astype(int)
 
         bond_hits = []
-        for i in range(self._ttot):
-            count = 0
-            for j in t:
-                if int(j) == int(i):
-                    count += 1
-            bond_hits.append(count)
+        if frame_select == None:
+            for i in range(self._ttot):
+                count = 0
+                for j in t:
+                    if int(j) == int(i):
+                        count += 1
+                bond_hits.append(count)
+        else:
+            for i in frame_select:
+                count = 0
+                for j in t:
+                    if int(j) == int(i):
+                        count += 1
+                bond_hits.append(count)
 
         return (bond_hits)
 
 
-
-    def hbond_analysis_carbon(self,wc,cpos,lower,upper,start,stop,boxdim,bins,org,frame_select,filename):
+    def hbond_analysis_carbon(self,wc,cpos,lower,upper,start,stop,boxdim,bins,org,frame_select=None,filename=None,save_raw=None):
 
         '''Run hydrogen bond analysis on the trajectory.'''
 
@@ -367,8 +376,8 @@ class Hbondz:
 
         # organise the data
         # extract hits for donors and acceptors, as well as nul counts (no hbonds formed)
-        don_counts = self.organize_data(hbonds_don,'donor')
-        acc_counts = self.organize_data(hbonds_acc,'acceptor')
+        don_counts = self.organize_data(hbonds_don,'donor',frame_select)
+        acc_counts = self.organize_data(hbonds_acc,'acceptor',frame_select)
 
         # run proximity calcs for carbon atoms 
         dens = Density(self._u)
@@ -376,7 +385,7 @@ class Hbondz:
         print(len(wc))
         print(len(cpos))
         print(len(boxdim))
-        if frame_select != None:
+        if frame_select == None:
             result_dist = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],cpos[i],boxdim[i],upper=self._uz) for i in tqdm(range(self._ttot)))
         else:
             result_dist = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(wc[i],cpos[i],boxdim[i],upper=self._uz) for i in tqdm(frame_select))
@@ -384,6 +393,14 @@ class Hbondz:
 
         # analyse stats
         print('Binning.')
+
+        if save_raw != None:
+            save_file = np.array([carbon_pos,don_counts]).T
+            np.savetxt(f'./outputs/don_raw_{save_raw}.dat',save_file)
+            save_file = np.array([carbon_pos,acc_counts]).T
+            np.savetxt(f'./outputs/acc_raw_{save_raw}.dat',save_file)
+
+
         mean_don,edge_don,binnumber = stats.binned_statistic(carbon_pos,
                                                        don_counts,
                                                        statistic='mean',

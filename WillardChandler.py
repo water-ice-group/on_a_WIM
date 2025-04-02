@@ -149,7 +149,7 @@ class WillardChandler:
                     lower=-10,upper=10,
                     select_frames=None,
                     carbon_spec=None,
-                    time_series=False):
+                    save_raw=None):
 
 
         """Computes the density of molecules relative to the water-carbon interface.
@@ -193,8 +193,8 @@ class WillardChandler:
         hist_input = np.concatenate(result).ravel()
 
         # output total distance if looking at different types of carbon species
-        if time_series == True:
-            np.savetxt('./outputs/time_dist.dat',hist_input)
+        if save_raw != None:
+            np.savetxt(f'./outputs/dens_raw_{save_raw}.dat',hist_input)
 
         density,bin_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
 
@@ -380,7 +380,7 @@ class WillardChandler:
 
 
     # Hydrogen bond counting
-    def Hbonds_run(self,mol_type,bins=100,lower=-8,upper=2,org=False,frame_select=None,filename=None):
+    def Hbonds_run_water(self,bins=100,lower=-8,upper=2):
         
         counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
@@ -388,21 +388,39 @@ class WillardChandler:
 
         print()
         print(f'Obtaining Hbonds.')
-        if mol_type == 'water':
-            hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_water(self._WC,
-                                                                        lower,upper,
-                                                                        self._start,self._end,
-                                                                        self._boxdim,
-                                                                        bins)
-        elif mol_type == 'carbon':
-            hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_carbon(self._WC,
-                                                                                  self._cpos,
-                                                                        lower,upper,
-                                                                        self._start,self._end,
-                                                                        self._boxdim,
-                                                                        bins,org=org,
-                                                                        frame_select=frame_select,
-                                                                        filename=filename)
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_water(self._WC,
+                                                                                lower,upper,
+                                                                                self._start,self._end,
+                                                                                self._boxdim,
+                                                                                bins)
+    
+        self._don = hist_don
+        self._donx = don_range
+        self._acc = hist_acc
+        self._accx = acc_range
+
+        return ((hist_don,don_range),(hist_acc,acc_range))
+
+
+
+
+    def Hbonds_run_carbon(self,bins=100,lower=-8,upper=2,org=False,frame_select=None,filename=None,save_raw=None):
+        
+        counter = Hbondz(self._u,self._uz)
+        self._hbond_lower = lower
+        self._hbond_upper = upper
+
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_carbon(self._WC,
+                                                                                self._cpos,
+                                                                                lower,upper,
+                                                                                self._start,self._end,
+                                                                                self._boxdim,
+                                                                                bins,
+                                                                                org=org,
+                                                                                frame_select=frame_select,
+                                                                                filename=filename,
+                                                                                save_raw=save_raw)
+        
         self._don = hist_don
         self._donx = don_range
         self._acc = hist_acc
@@ -410,7 +428,7 @@ class WillardChandler:
 
         return ((hist_don,don_range),(hist_acc,acc_range))
     
-    def coordination_number(self,groupA='C',groupB='OW',r_0=3.5,filename=None,frame_select=None,bins=100,lower=-8,upper=2):
+    def coordination_number(self,groupA='C',groupB='OW',r_0=3.5,filename=None,frame_select=None,bins=100,lower=-8,upper=4,save_raw=None):
         cn_counter = CN(self._u)
 
         if groupA == 'C':
@@ -430,6 +448,7 @@ class WillardChandler:
         self._dens_result = result
 
         distance_inp = np.concatenate(result).ravel()
+
         print('Generating histogram(s)')
 
         print()
@@ -444,11 +463,15 @@ class WillardChandler:
         print(len(result))
         hist_input = result
         
+        if save_raw != None:
+            save_file = np.array([distance_inp,hist_input]).T
+            np.savetxt(f'./outputs/cn_raw_{save_raw}.dat',save_file)
+
+
         means,edges,binnumber = stats.binned_statistic(distance_inp[:].flatten(),
                                                         hist_input[:],
                                                         statistic='mean', bins=bins,
                                                         range=[lower,upper])
-        
         edges = 0.5 * (edges[1:] + edges[:-1])
         hist = np.array([edges, means])
         hist = hist.transpose()
