@@ -2,25 +2,29 @@ import numpy as np
 from scipy import stats
 from density import Density
 import matplotlib.pyplot as plt
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
-from MDAnalysis.transformations.wrap import wrap,unwrap
 from MDAnalysis.lib import distances
-from utilities import AtomPos
 
 
 class Orientation:
     
-    def __init__(self, universe, 
-                 **kwargs):
+    def __init__(self, universe):
         self._u = universe
     
     def _getCosTheta(self,ox,h1,h2,wc,boxdim):
-
-        center = boxdim[:3]/2
-
+        """Calculate cos(theta) for water dipoles relative to WC interface.
+        
+        Args:
+            ox (ndarray): Oxygen atom positions.
+            h1 (ndarray): First hydrogen positions.
+            h2 (ndarray): Second hydrogen positions.
+            wc (ndarray): WC interface coordinates.
+            boxdim (ndarray): Box dimensions for PBC.
+            
+        Returns:
+            tuple: (distances, cos_theta) arrays.
+        """
         vect1 = distances.minimize_vectors(h1-ox,boxdim)
         vect2 = distances.minimize_vectors(h2-ox,boxdim)
-
         dipVector0 = distances.minimize_vectors((vect1 + vect2) * 0.5,boxdim) 
 
         dens = Density(self._u)
@@ -32,49 +36,56 @@ class Orientation:
 
 
     def _getCosTheta_z(self,ox,h1,h2,boxdim):
-
-        center = boxdim[:3]/2
-
+        """Calculate cos(theta) for water dipoles relative to z-axis.
+        
+        Args:
+            ox (ndarray): Oxygen atom positions.
+            h1 (ndarray): First hydrogen positions.
+            h2 (ndarray): Second hydrogen positions.
+            boxdim (ndarray): Box dimensions for PBC.
+            
+        Returns:
+            tuple: (z_positions, cos_theta) arrays.
+        """
         vect1 = distances.minimize_vectors(h1-ox,boxdim)
         vect2 = distances.minimize_vectors(h2-ox,boxdim)
+        dipVector0 = distances.minimize_vectors((vect1 + vect2) * 0.5,boxdim) 
 
         dist = [distances.apply_PBC(ox[i],boxdim)[2] for i in range(len(ox))]
 
         norm = [0,0,1]
-        dipVector0 = distances.minimize_vectors((vect1 + vect2) * 0.5,boxdim) 
-
         cosTheta = [np.dot(dipVector0[i], norm)/(np.linalg.norm(dipVector0[i])*np.linalg.norm(norm)) for i in range(len(dist))]
 
         return (dist,cosTheta)
 
-    # redacted feature
-    '''elif property=='bond':
-        #vect1 = distances.apply_PBC(h1-ox,box=boxdim)
-        vect1 = np.subtract(h1,ox)
-        unitvect = ( vect1 / np.linalg.norm(vect1, axis=1)[:, None] )
 
-    dens = Density(self._u)
-    dist,surf_vect = dens.proximity(wc,ox,boxdim,upper=upper_z,result='both')
 
-    if vector=='WC':
-        cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
-    elif vector=='z':
-        cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
-    
-    return (np.array(dist),np.array(cosTheta))'''
         
     
     def _getCosTheta_Carbon(self,c,oc1,oc2,wc,boxdim,vector,property='dipole'):
-
+        """Calculate cos(theta) for CO2 molecules.
+        
+        Args:
+            c (ndarray): Carbon atom positions.
+            oc1 (ndarray): First oxygen positions.
+            oc2 (ndarray): Second oxygen positions.
+            wc (ndarray): WC interface coordinates.
+            boxdim (ndarray): Box dimensions for PBC.
+            vector (str): Reference vector - 'z' or 'WC'.
+            property (str): Property to compute - 'dipole' or 'bond'.
+            
+        Returns:
+            tuple: (distances, cos_theta) arrays.
+            
+        Raises:
+            ValueError: If unknown vector or property type.
+        """
         if property=='dipole':
-            center = boxdim[:3]/2
-            # vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
-            # vect2 = distances.apply_PBC(oc2-c+center,box=boxdim)
 
             vect1 = distances.minimize_vectors(oc1-c,boxdim)
             vect2 = distances.minimize_vectors(oc2-c,boxdim)
 
-            dipVector0 = (vect1 + vect2) * 0.5 # - center # map the dipole
+            dipVector0 = (vect1 + vect2) * 0.5
 
             dens = Density(self._u)
             dist,surf_vect = dens.proximity(wc,c,boxdim,result='both',cutoff=False)
@@ -83,23 +94,17 @@ class Orientation:
                 cosTheta = [np.dot(dipVector0[i],[0,0,1])/np.linalg.norm(dipVector0[i]) for i in range(len(dist))]
             elif vector=='WC':
                 cosTheta = [np.dot(dipVector0[i],surf_vect[i])/((np.linalg.norm(surf_vect[i]))*np.linalg.norm(dipVector0[i])) for i in range(len(dist))]
+            else:
+                raise ValueError(f"Unknown vector type: {vector}. Use 'z' or 'WC'.")
 
-            return (dist,cosTheta)
+            return (dist, cosTheta)  # Return here for dipole case
+
         
         elif property=='bond':
-            center = boxdim[:3]/2
-
-            # init_1 = distances.apply_PBC(oc1-c+center,box=boxdim)
-            # init_2 = distances.apply_PBC(oc2-c+center,box=boxdim)
-            # vect1 = init_1 - center
-            # vect2 = init_2 - center
+            # center = boxdim[:3]/2  # Remove - unused
 
             vect1 = distances.minimize_vectors(oc1-c,boxdim)
             vect2 = distances.minimize_vectors(oc2-c,boxdim)
-
-            #test_1 = oc1-c
-            #print(f'Normal {test_1[-5]}')
-            #print(f'Wrapped {vect1[-5]}')
 
             dens = Density(self._u)
             dist,surf_vect = dens.proximity(wc,c,boxdim,result='both',cutoff=False)
@@ -111,95 +116,128 @@ class Orientation:
             elif vector=='WC':
                 cosTheta_1 = [np.dot(vect1[i],surf_vect[i])/((np.linalg.norm(surf_vect[i]))*np.linalg.norm(vect1[i])) for i in range(len(dist))]
                 cosTheta_2 = [np.dot(vect2[i],surf_vect[i])/((np.linalg.norm(surf_vect[i]))*np.linalg.norm(vect2[i])) for i in range(len(dist))]
+            else:
+                raise ValueError(f"Unknown vector type: {vector}. Use 'z' or 'WC'.")
 
             dist_out = dist + dist
-            cosTheta_out = cosTheta_1 + cosTheta_2
+            cosThet_out = cosTheta_1 + cosTheta_2
 
-            return (dist_out,cosTheta_out)
+            return (dist_out, cosThet_out)  # Return here for bond case
+        
+        else:
+            raise ValueError(f"Unknown property type: {property}. Use 'dipole' or 'bond'.")
 
-    # redacted feature
-    '''elif property=='bond':
-        center = boxdim[:3]/2
-        vect1 = distances.apply_PBC(oc1-c+center,box=boxdim)
-        vect2 = distances.apply_PBC(oc2-c+center,box=boxdim) 
-        #dipVector0 = (vect1 + vect2) * 0.5 - center # map the dipole
-        dipVector0 = vect1 - center # map the bond angle
-        unitvect = ( dipVector0/ np.linalg.norm(vect1, axis=1)[:, None] )
 
-        dens = Density(self._u)
-        dist,surf_vect = dens.proximity(wc,c,boxdim,upper=upper_z,result='both')
 
-        if vector=='WC':
-            cosTheta = [np.dot(unitvect[i],surf_vect[i])/dist[i] for i in range(len(dist))]
-        elif vector=='z':
-            cosTheta = [np.dot(unitvect[i],[0,0,-1])/dist[i] for i in range(len(dist))]
 
-        return (np.array(dist),np.array(cosTheta))'''
 
-    def _getHistogram(self, dist, cosThetra, bins=200,hist_range=[-20,10]):
+    def _getHistogram(self, dist, cosThetra, bins=200,hist_range=None):
+        """Generate binned histogram of orientation vs distance.
+        
+        Args:
+            dist (ndarray): Distance values.
+            cos_theta (ndarray): Cosine theta values.
+            bins (int): Number of histogram bins.
+            hist_range (list): [min, max] range for binning.
+            
+        Returns:
+            ndarray: Histogram with columns [bin_centers, mean_cos_theta].
+        """
+        if hist_range is None:
+            hist_range = [-20, 10]
 
-        means, edges, binnumber = stats.binned_statistic(dist[:].flatten(),
-                                                         cosThetra[:].flatten(),
+        means, edges, _ = stats.binned_statistic(dist[:].flatten(),
+                                                         cosThetra.flatten(),
                                                          statistic='mean', bins=bins,
                                                          range=hist_range)
         
-        counts, edges, binnumber = stats.binned_statistic(dist[:].flatten(),
-                                                         cosThetra[:].flatten(),
+        counts, _, _ = stats.binned_statistic(dist[:].flatten(),
+                                                         cosThetra.flatten(),
                                                          statistic='count', bins=bins,
                                                          range=hist_range)
         
 
-        final = []
-        for i in range(len(counts)):
-            if counts[i] > max(counts)*0.2:
-                final.append(means[i])
-            else:
-                final.append(0)
+        count_threshold = np.max(counts) * 0.2
+        filtered_means = np.where(counts > count_threshold, means, 0)
 
-        edges = 0.5 * (edges[1:] + edges[:-1])
-        hist = np.array([edges, final])
-        hist = hist.transpose()
-        return (hist)
-    
-
-    def _getHeatMap(self,dist, cosThetra, bins=200,hist_range=[-10,10]):
-        hist, x_edges, y_edges = np.histogram2d(dist,cosThetra, bins=50,density=True,
-                                        range=[hist_range,[-1,1]]
-                                        )
+        bin_centers = 0.5 * (edges[1:] + edges[:-1])
+        hist = np.column_stack([bin_centers, filtered_means])
         
-        return (hist,x_edges,y_edges)
+        return hist
+
+
+
+
+    def _getHeatMap(self, dist, cos_theta, bins=50, hist_range=None):
+        """Generate 2D histogram heatmap of orientation vs distance.
+        
+        Args:
+            dist (ndarray): Distance values.
+            cos_theta (ndarray): Cosine theta values.
+            bins (int): Number of bins in each dimension.
+            hist_range (list): [min, max] range for distance axis.
+            
+        Returns:
+            tuple: (histogram, x_edges, y_edges) arrays.
+        """
+        if hist_range is None:
+            hist_range = [-10, 10]
+
+        hist, x_edges, y_edges = np.histogram2d(
+            dist, cos_theta, 
+            bins=bins, 
+            density=True,
+            range=[hist_range, [-1, 1]]
+        )
+        
+        return (hist, x_edges, y_edges)
     
 
     
 
-def oriPlot(data_Oxygen,data_Carbon,lower=-15,upper=15,smooth=2):
+
+
+
+def oriPlot(data_Oxygen,data_Carbon=None,lower=-15,upper=15,smooth=2):
+    """Plot orientation profiles.
+    
+    Args:
+        data_Oxygen (ndarray): Orientation data for water with columns [dist, cos_theta].
+        data_Carbon (ndarray, optional): Orientation data for carbon species.
+        lower (float): Lower x-axis limit.
+        upper (float): Upper x-axis limit.
+        smooth (int): Smoothing factor (take every Nth point).
+        
+    Raises:
+        ValueError: If data_Oxygen is None.
+    """
+    if data_Oxygen is None:
+        raise ValueError("data_Oxygen is None. Ensure Orientation_run() completed successfully.")
+
     dist = []
-    dist_C = []
     plot = []
-    plot_C = []
 
     for i in data_Oxygen:
         dist.append(i[0])
         plot.append(i[1])
     
-
-    zeros = [0]*len(dist)
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(4,3))
     ax.plot(dist[::smooth],plot[::smooth],'blue')
-    ax.fill_between(dist[::smooth],zeros[::smooth],plot[::smooth],
+    ax.fill_between(dist[::smooth], 0, plot[::smooth],  # Use 0 instead of zeros list
                     color='blue',
                     alpha=0.2)
-    ax.set_xlabel('Distance / $\mathrm{\AA}$')
-    ax.set_ylabel(r'P<cos($\theta$)>')
+    ax.set_xlabel(r'Distance / $\mathrm{\AA}$')  # Add raw string prefix
+    ax.set_ylabel(r'$\langle \cos(\theta) \rangle$')  # Fixed formatting
     ax.set_xlim(lower,upper)
 
     if data_Carbon is not None:
+        dist_C = []
+        plot_C = []
         for i in data_Carbon:
             dist_C.append(i[0])
             plot_C.append(i[1])
-        zeros_C = [0]*len(dist_C)
         ax.plot(dist_C[::smooth],plot_C[::smooth],'black')
-        ax.fill_between(dist_C[::smooth],zeros_C[::smooth],plot_C[::smooth],
+        ax.fill_between(dist_C[::smooth], 0, plot_C[::smooth],  # Use 0 instead of zeros_C list
                 color='black',
                 alpha=0.2)
 
@@ -207,4 +245,4 @@ def oriPlot(data_Oxygen,data_Carbon,lower=-15,upper=15,smooth=2):
     plt.show()
 
 
-    
+

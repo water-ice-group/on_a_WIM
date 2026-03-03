@@ -1,23 +1,32 @@
-# script for calculating the Willard-Chandler interface
-# https://pubs.acs.org/doi/pdf/10.1021/jp909219k
-
-
 import numpy as np
-import csv
 import os
 from MDAnalysis.analysis.distances import distance_array
-from utilities import AtomPos
 from scipy import interpolate
 import MDAnalysis as mda
 from MDAnalysis.lib import distances
+import warnings
 
+# Suppress MDAnalysis warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='MDAnalysis')
+
+
+default_epsilon = 2.4
+default_crit_dens = 0.016
 
 class WC_Interface:
+    """Module for generating a Willard-Chandler interface.
     
-    '''Module for generating a Willard-Chandler interface and using this
-    interface to calculate properties such as density and orientation.'''
+    Uses coarse-grained density fields to identify the instantaneous
+    liquid-vapour interface.
+    
+    Args:
+        universe: MDAnalysis universe object.
+        grid_spacing (int): Number of grid points along z-axis.
+        lower_z (float): Lower bound for interface detection.
+        upper_z (float): Upper bound for interface detection.
+    """
 
-    def __init__(self, universe, grid_spacing=100, lower_z=10, upper_z=30, **kwargs):
+    def __init__(self, universe, grid_spacing=100, lower_z=10, upper_z=30):
         
         self._u = universe          # load universe
         self._gs = grid_spacing     # load the grid spacing along z
@@ -25,117 +34,160 @@ class WC_Interface:
         self._uz = upper_z          # load the upper bounds for interface detection.
     
 
+
+
+
+
+
+
+
+
     ##########################################################################
     ###################### Generate the WC interface #########################
     ##########################################################################
     
-    def gaussian(self,r,eps=2.4,dimens=3): 
-        '''Function for generating the coarse-grained density at a 
-        single point.'''
+    def gaussian(self,r,eps=default_epsilon,dimens=3): 
+        """Calculate coarse-grained density contribution at a point.
         
+        Args:
+            r (ndarray): Distance array.
+            eps (float): Gaussian width parameter.
+            dimens (int): Dimensionality of the system.
+            
+        Returns:
+            ndarray: Gaussian density contributions.
+        """
         function = (2*np.pi*eps**2)**(-dimens/2) * np.exp(-(r**2)/(2*eps**2))
         return function
         
         
         
     def grid_spacing(self):
-        '''Create the spatial positions extending the entirety of the box.'''
-        '''Create once at beginning => Difficulty with variable box sizes (NPT).'''
+        """Create spatial grid extending over the simulation box.
+        
+        Note: Creates grid once at beginning. May have issues with 
+        variable box sizes (NPT).
+        
+        Returns:
+            ndarray: Grid points with shape (n_points, 3).
+        """
+        x_dim = self._u.dimensions[0]
+        y_dim = self._u.dimensions[1]
+        x_spacing = int(x_dim)
+        y_spacing = int(y_dim)
 
         grid = []
-        x = self._u.dimensions[0]
-        x_spacing = int(1*self._u.dimensions[0])
-        y = self._u.dimensions[1]
-        y_spacing = int(1*self._u.dimensions[1])
+        for i in np.linspace(0, x_dim, x_spacing):
+            for j in np.linspace(0, y_dim, y_spacing):
+                for k in np.linspace(self._lz, self._uz, self._gs):
+                    grid.append([i, j, k])
 
-        for i in np.linspace(0,x,x_spacing):
-            for j in np.linspace(0,y,y_spacing):
-                for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
-                    grid.append([i,j,k])
-
-        # for i in np.linspace(0,x - (x/x_spacing),x_spacing):
-        #     for j in np.linspace(0,y - (y/y_spacing),y_spacing):
-        #         for k in np.linspace(self._lz,self._uz,self._gs): # need to include 5A buffer to prevent zero point interference. 
-        #             grid.append([i,j,k])
-
-        grid = np.array(grid)
-        
-        return grid
+        return np.array(grid)
         
  
     def CG_field(self,manifold,opos,boxdim):
-        '''Return the CG field for each of the spatial points.'''
-
-        density_field = []
-        array = np.array(manifold)
-        opos_wrap = distances.apply_PBC(opos,boxdim)
-        dist =  distance_array(array,opos,box=boxdim) # hopefully providing box dimensions will take care of wrapping etc. 
-
-        dens_array = self.gaussian(dist) # return gaussian for each of the grid points (rows) calculated per atom (columns)
-        density_field = np.sum(dens_array,axis=1) # sum the gaussians along the columns (atoms) for each row (grid point)
+        """Calculate coarse-grained density field at grid points.
         
+        Args:
+            manifold (ndarray): Grid points.
+            opos (ndarray): Oxygen atom positions.
+            boxdim (ndarray): Box dimensions for PBC.
+            
+        Returns:
+            ndarray: Density field values at each grid point.
+        """
+        array = np.array(manifold)
+        # opos_wrap = distances.apply_PBC(opos, boxdim)
+        
+        # Calculate distances from grid points to atoms
+        dist = distance_array(array, opos, box=boxdim)
+        
+        # Sum Gaussian contributions from all atoms
+        dens_array = self.gaussian(dist)
+        density_field = np.sum(dens_array, axis=1)
+
         return density_field
                 
     
-    def criteria(self,O_atoms,grid,boxdim=None,crit=0.016):
-        '''Identify the quasi-2D surface by equating the points in the density
-        field to a particular critical value, chosen here to be half the 
-        density of water.'''
+    def criteria(self,O_atoms,grid,boxdim=None,crit=default_crit_dens):
+        """Identify the interface by finding points at critical density.
         
+        Locates the quasi-2D surface where the coarse-grained density
+        equals the critical value (half bulk water density).
         
-        field = self.CG_field(grid,O_atoms,boxdim)
-        manifold = grid
+        Args:
+            O_atoms (ndarray): Oxygen atom positions.
+            grid (ndarray): Grid points.
+            boxdim (ndarray): Box dimensions.
+            crit (float): Critical density value.
+            
+        Returns:
+            ndarray: Interface coordinates (lower and upper surfaces).
+        """
+        field = self.CG_field(grid, O_atoms, boxdim)
+        n_xy_points = int(len(field) / self._gs)
 
-        inter_lower = np.zeros(shape=(int(len(field)/self._gs),3))
-        inter_upper = np.zeros(shape=(int(len(field)/self._gs),3))
+        inter_lower = np.zeros(shape=(n_xy_points, 3))
+        inter_upper = np.zeros(shape=(n_xy_points, 3))
 
-
-        for i in range(int(len(field)/self._gs)):
+        for i in range(n_xy_points):
 
             # extract field values at different z along point in the x/y.
             z_field = field[i*self._gs:(i+1)*self._gs]
-
             # extract corresponding z coordinates along point in x/y frame. 
-            z_pos = manifold[i*self._gs:(i+1)*self._gs]
+            z_pos = grid[i*self._gs:(i+1)*self._gs]
 
-            div = int(len(z_field)/2)
+            div = len(z_field)//2
+            lower_field, upper_field = z_field[:div], z_field[div:]
+            lower_pos, upper_pos = z_pos[:div], z_pos[div:]
 
-            lower_field = z_field[:div]
-            upper_field = z_field[div:]
-            lower_pos = z_pos[:div]
-            upper_pos = z_pos[div:]
+            # Find closest point to critical density (lower interface)
+            diff_lower = np.abs(lower_field - crit)
+            min_idx_lower = np.argmin(diff_lower)
+            inter_lower[i] = lower_pos[min_idx_lower]
 
+            # Find closest point to critical density (upper interface)
+            diff_upper = np.abs(upper_field - crit)
+            min_idx_upper = np.argmin(diff_upper)
+            inter_upper[i] = upper_pos[min_idx_upper]
 
-            diff_lower = abs(lower_field - crit)
-            min_z = min(diff_lower)
-            min_idx = np.where(diff_lower == min_z)[0][0]
-            inter_lower[i] = lower_pos[min_idx]
-            
-            diff_upper = abs(upper_field - crit)
-            min_z = min(diff_upper)
-            min_idx = np.where(diff_upper == min_z)[0][0]
-            inter_upper[i] = upper_pos[min_idx]
-
-            out = np.concatenate((inter_lower,inter_upper),axis=0)
-
+        out = np.concatenate((inter_lower,inter_upper),axis=0)
         return out
+
+
+
+
+
+
+
+
+
+
 
 
     ##########################################################################
     ################################# Deformation ############################
     ##########################################################################
 
-
     def dist_surf_deform(self,WC):
+        """Calculate surface deformation relative to mean position.
+        
+        Args:
+            WC (ndarray): Interface coordinates for a single frame.
+            
+        Returns:
+            ndarray: Z-coordinates relative to average position.
+        """
+        WC_array = np.asarray(WC)
+        z_coord = WC_array[:, 2]
+        avg = np.mean(z_coord)
+        return z_coord - avg
 
-        '''Take single frame: return the z coordinates relative to average 
-        position.'''
 
-        z_coord = [i[2] for i in WC]
-        avg = np.average(z_coord)
-        output = [i-avg for i in z_coord]
 
-        return output
+
+
+
 
 
 
@@ -145,27 +197,38 @@ class WC_Interface:
     ##########################################################################
                 
                 
-    def spline(self,WC_inter):
-        '''Spline the interface to obtain finer grid.'''
-
-        x = [i[0] for i in WC_inter]
-        y = [i[1] for i in WC_inter]
-        z = [i[2] for i in WC_inter]
+    def spline(self,WC_inter,mesh_size=100):
+        """Spline the interface to obtain a finer grid.
         
+        Args:
+            WC_inter (ndarray): Interface coordinates.
+            mesh_size (int): Number of points in interpolated grid.
+            
+        Returns:
+            list: Interpolated coordinates on finer grid.
+        """
+
+        WC_array = np.array(WC_inter)
+        x = WC_array[:, 0]
+        y = WC_array[:, 1]
+        z = WC_array[:, 2]
 
         # interpolate
         tck = interpolate.bisplrep(x, y, z)
         
         xy = self._u.dimensions[0]
-        mesh = complex(0,100)
+        mesh = complex(0,mesh_size)
         
-        # interpolate over new 100x100 grid
+        # interpolate over new mesh_size x mesh_size grid
         xnew_edges, ynew_edges = np.mgrid[0:xy:mesh, 0:xy:mesh]
         xnew = xnew_edges[:-1, :-1] + np.diff(xnew_edges[:2, 0])[0] / 2.
         ynew = ynew_edges[:-1, :-1] + np.diff(ynew_edges[0, :2])[0] / 2.
         
+        # evaluate spline
         znew = interpolate.bisplev(xnew[:,0], ynew[0,:], tck)
         
+
+        # build coordinate list
         coordinates = []
         for i in range(len(znew)):
             for j in range(len(znew)):
@@ -174,40 +237,80 @@ class WC_Interface:
             
         
         return coordinates
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ##########################################################################
     #################### Coordinates & Visualisation #########################
     ##########################################################################
 
     def gener_WC_univ(self,WC):
-        '''Create universe object containing coordinates.'''
-        '''WC object has structure [frames[positions]]'''
+        """Create MDAnalysis universe containing interface coordinates.
+        
+        Args:
+            WC (list): Interface coordinates with structure [frames[positions]].
+            
+        Returns:
+            Universe: MDAnalysis universe with interface trajectory.
+        """
 
         no_points = len(WC[0])
-        sol = mda.Universe.empty(no_points,trajectory=True)
-        sol.add_TopologyAttr('name', ['S']*no_points)
+        surf_u = mda.Universe.empty(no_points,trajectory=True)
+        surf_u.add_TopologyAttr('name', ['S']*no_points) # use 'S' for visualisation purposes. 
     
         coordinates = np.array(WC)
+        surf_u.load_new(coordinates)
+        return surf_u
 
-        sol.load_new(coordinates)
 
-        return sol
+
 
     def save_coords(self,WC):
-        '''Utility to save generated interface.'''
-
+        """Save generated interface coordinates.
+        
+        Args:
+            WC (list): Interface coordinates for all frames.
+        """
         wc_univ = self.gener_WC_univ(WC)
         sel = wc_univ.select_atoms('all')
 
+        box_dims = [
+            self._u.dimensions[0],
+            self._u.dimensions[1],
+            self._uz,
+            90.0, 90.0, 90.0
+        ]
+
         with mda.Writer("./outputs/ref_inter.pdb",len(WC[0])) as W:
-            sel.dimensions = [self._u.dimensions[0], self._u.dimensions[1], self._uz, 90.0, 90.0, 90.0]
+            sel.dimensions = box_dims
             W.write(sel)
 
         with mda.Writer("./outputs/inter.dcd",len(WC[0])) as W:
             for ts in wc_univ.trajectory:
                 W.write(sel)
 
+
+
+
     def load_coords(self):
+        """Load previously saved interface coordinates.
+        
+        Returns:
+            Universe: MDAnalysis universe with interface trajectory,
+                     or None if files not found.
+        """
         pdb = './outputs/ref_inter.pdb'
         trj = './outputs/inter.dcd'
 
@@ -219,6 +322,7 @@ class WC_Interface:
         
         else:
             print('No interface files detected in ./outputs.')
+            return None
 
 
                 

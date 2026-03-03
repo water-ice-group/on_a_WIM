@@ -1,5 +1,5 @@
 # script for calculating the Willard-Chandler interface
-# https://pubs.acs.org/doi/pdf/10.1021/jp909219k
+# https://pubs.aip.org/aip/jcp/article/161/8/084711/3309975
 
 
 # Standard library imports
@@ -20,24 +20,32 @@ from hbondz import Hbondz, CN, hbondPlot
 from rdf import RDF
 
 
+N_A = 6.022*10**23
+R = 8.3145
+k = 1.380649e-23 
+T = 300
 
+MOLECULAR_MASSES = {
+    'OW': 18.01528,
+    'H3O': 19.023,
+    'CO2': 44.0095,
+    'BiC': 61.016,
+    'CA': 62.024,
+    'TS': 62.024,
+}
 
 class WillardChandler:
     
-    """Module for calculating the WC interface and computing properties relative to interface.
+    """Module for calculating the WC interface and computing properties using the interface as the zero. 
+    Currently only supports H2O and CO2, but can be adapted for other carbon species.
 
     Args:
         universe (obj):         Load MDAnalysis universe for system. 
-        lower_z (float):        Upper bound for histogram range.
-        upper_z (float):        Upper bound for histogram range.
         startstep (int):        Number of bins for histogram.
         endstep (int):          Lower bound for histogram range.
-    
-    Returns:
-        tuple: Tuple containing density histogram and corresponding bin edges.
-
-    Raises:
-        ValueError: If the specified atom type is not supported."""
+        lower_z (float):        Upper bound for histogram range.
+        upper_z (float):        Upper bound for histogram range.
+    """
 
     def __init__(self, universe, lower_z, upper_z, startstep=None,endstep=None):    
         self._u = universe
@@ -45,6 +53,8 @@ class WillardChandler:
         self._end = endstep
         self._lz = lower_z
         self._uz = upper_z
+        self.n_cores = multiprocessing.cpu_count() //2   # Initialize here 
+
 
 
 
@@ -53,11 +63,18 @@ class WillardChandler:
     ##########################################################################
 
 
-
-
     def generate(self,grid=400,new_inter=True,project='standard'):
 
-        '''Generate the WC interface.'''
+        '''Generate the WC interface.
+        
+            Args:
+            grid (int): Grid resolution for interface calculation.
+            new_inter (bool): If True, generate new interface; if False, load existing.
+            project (str): Project type - 'standard', 'metaD', or 'h3o+'.
+            
+        Returns:
+            list: WC interface coordinates for each frame.
+            '''
         
         print()
         print('---------------------')
@@ -67,6 +84,7 @@ class WillardChandler:
 
         self._grid = grid
         pos = AtomPos(self._u,self._start,self._end)
+
         if project=='standard':       # organise waters by closest hydrogens. Returns list organised by molecule. 
             self._opos,self._h1pos,self._h2pos,self._cpos,self._ocpos1,self._ocpos2,self._boxdim = pos.prepare()
             opos_traj = self._opos
@@ -77,56 +95,78 @@ class WillardChandler:
             self._opos,self._hpos,self._h3opos,self._boxdim = pos.prepare_unorg()
             opos_traj = self._opos
 
+#
+
         inter = WC_Interface(self._u,grid,self._lz,self._uz)
+        if new_inter: # create new surface by parsing through frames. If False, load existing surface from file.
+            self.n_cores = multiprocessing.cpu_count()//2
+            self._WC = self._generate_new_interface(inter, opos_traj)
         
-        if new_inter==True: # generate new interfacial surface
-            num_cores = multiprocessing.cpu_count()//2
-            print()
-            print(f'Number of cores: {num_cores}')
-            print()
-            print('Generating frames ...')
-            grid = inter.grid_spacing()
-            result = Parallel(n_jobs=num_cores)(delayed(inter.criteria)(opos_traj[i],grid,self._boxdim[i]) for i in tqdm(range(len(opos_traj))))
-            self._WC = result
-            print('Done')
-            print()
-        
-        elif new_inter==False: # load existing surface
-            result = self.load(inter)
-            self._WC = result
+        else: # load existing surface
+            self._WC = self._load_interface(inter)
 
         self.inter = inter
         return self._WC
 
-    def save(self):      # save coordinates for visualisation
-        self.inter.save_coords(self._WC)
 
-    def load(self,inter): # load existing coordinates for surface
+    def _generate_new_interface(self, inter, opos_traj):
+        """Generate new interfacial surface."""
+        print(f'Number of cores: {self.n_cores}\n')
+        print('Generating frames ...')
+        
+        grid = inter.grid_spacing()
+        result = Parallel(n_jobs=self.n_cores)(
+            delayed(inter.criteria)(opos_traj[i], grid, self._boxdim[i])
+            for i in tqdm(range(len(opos_traj)))
+        )
+        
+        print('Done\n')
+        return result
+
+    def _load_interface(self, inter):
+        """Load existing interface coordinates."""
         wc_univ = inter.load_coords()
         loaded_coords = []
         sel = wc_univ.select_atoms('all')
-        for ts in wc_univ.trajectory:
-            pos = sel.positions
-            loaded_coords.append(pos)
-        return loaded_coords
         
-    def surface_stats(self,bins=100): # states on the deformation of the interface
+        for _ in wc_univ.trajectory:
+            loaded_coords.append(sel.positions.copy())
+            
+        return loaded_coords
 
+
+    def save(self):      
+        """Save interface coordinates for visualisation."""
+        self.inter.save_coords(self._WC)
+        
+
+
+    def surface_stats(self,bins=100): 
+        """Calculate statistics on the deformation of the interface.
+        
+        Args:
+            bins (int): Number of histogram bins.
+            
+        Returns:
+            tuple: (density, x_range) histogram data.
+        """
         inter = WC_Interface(self._u,self._grid,self._lz,self._uz)
 
-        num_cores = multiprocessing.cpu_count()
         print('Getting surface stats ...')
-        result = Parallel(n_jobs=num_cores)(delayed(inter.dist_surf_deform)(self._WC[i]) for i in tqdm(range(len(self._WC)))) # parse through frames
+        result = Parallel(n_jobs=self.n_cores)(
+            delayed(inter.dist_surf_deform)(self._WC[i])
+            for i in tqdm(range(len(self._WC)))
+            ) 
+        
         print('Generating histogram(s)')
         hist_input = np.concatenate(result).ravel()
         density,x_range = np.histogram(hist_input,bins=bins,density=True)
 
-        save_dat = np.array([x_range[:-1],density])
-        save_dat = save_dat.transpose()
-        np.savetxt('outputs/surface_stats.dat',save_dat)
-        print('Done')
-        print()
-        return (density,x_range[:-1])
+        save_dat = np.column_stack([x_range[:-1], density])
+        np.savetxt('outputs/surface_stats.dat', save_dat)
+
+        print('Done\n')
+        return density,x_range[:-1]
 
         
 
@@ -152,25 +192,27 @@ class WillardChandler:
                     save_raw=None):
 
 
-        """Computes the density of molecules relative to the water-carbon interface.
+        """Computes density profiles relative to the water-carbon interface.
 
         Args:
-            atom_type (str):        Type of molecule ('OW' for water oxygen or 'C' for carbon).
-            bins (int):             Number of bins for histogram.
-            lower (float):          Lower bound for histogram range.
-            upper (float):          Upper bound for histogram range.
-        
+            atom_type (str): Type of molecule ('OW', 'C', or 'H3O').
+            bins (int): Number of bins for histogram.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+            select_frames (list, optional): Specific frames to analyse.
+            carbon_spec (str, optional): Carbon species type ('CO2', 'BiC', 'CA', 'TS').
+            save_raw (str, optional): Filename suffix for raw data output.
+
         Returns:
-            tuple: Tuple containing density histogram and corresponding bin edges.
+            tuple: (density_histogram, bin_centers)
 
         Raises:
-            ValueError: If the specified atom type is not supported."""
+            ValueError: If the specified atom type is not supported.
+        """
         
-
         dens = Density(self._u)
         self._dens_lower = lower
         self._dens_upper = upper
-
 
         if atom_type == 'OW':
             traj = self._opos
@@ -178,18 +220,21 @@ class WillardChandler:
             traj = self._cpos
         elif atom_type == 'H3O':
             traj = self._h3opos
+        else:
+            raise ValueError(f"Unsupported atom type: {atom_type}")
+        frames = select_frames if select_frames is not None else range(len(traj))
+
 
         print()
         print(f'Obtaining {atom_type} density.')
-        num_cores = multiprocessing.cpu_count()
         print('Calculating density profile ...')
-        if select_frames == None:
-            result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj)))) # parse through frames
-        else:
-            result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(select_frames))
+        result = Parallel(n_jobs=self.n_cores
+                          )(delayed(dens.proximity)(
+                              self._WC[i],traj[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(frames)) # parse through frames
         self._dens_result = result
-        print('Generating histogram(s)')
 
+
+        print('Generating histogram(s)')
         hist_input = np.concatenate(result).ravel()
 
         # output total distance if looking at different types of carbon species
@@ -197,60 +242,55 @@ class WillardChandler:
             np.savetxt(f'./outputs/dens_raw_{save_raw}.dat',hist_input)
 
         density,bin_range = np.histogram(hist_input,bins=bins,range=[lower,upper])
-
         x_range = [(bin_range[i]+bin_range[i+1])/2 for i in range(len(bin_range)-1)]
 
-        N_A = 6.022*10**23
         xy = self._u.dimensions[0]
         hist_range = upper - lower
-        if atom_type == 'OW':
-            mol_dens = 18.01528
-        elif atom_type == 'C':
-            if carbon_spec == None or carbon_spec == 'CO2':
-                mol_dens = 44.0095 # need to adapt for each type of carbon species.
-            elif carbon_spec == 'BiC':
-                mol_dens = 61.016
-            elif carbon_spec == 'CA' or carbon_spec == 'TS':
-                mol_dens = 62.024
-        elif atom_type == 'H3O':
-            mol_dens = 19.023
+        mol_mass = self._get_molecular_mass(atom_type, carbon_spec)
+        result_hist = [(i*mol_mass)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30) # calculate normalised density in g/cm^3. 
+                                                   ) * (len(frames)) * 10**6) for i in density]
 
-        if select_frames == None:
-            result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(traj)) * 10**6) for i in density]
-        else:
-            result_hist = [(i*mol_dens)/( 2 * (N_A) * (xy*xy*(hist_range/bins) * 10**(-30)) * (len(select_frames)) * 10**6) for i in density]
+        save_dat = np.column_stack([x_range, result_hist])
+        np.savetxt(f'./outputs/{atom_type}_dens.dat', save_dat)
 
-        save_dat = np.array([x_range,result_hist])
-        save_dat = save_dat.transpose()
-        np.savetxt('./outputs/' + atom_type + '_dens.dat',save_dat)
-        print('Done')
-        print()
-        return (result_hist,x_range)
-    
+        print('Done\n')
+        return result_hist,x_range
 
-    def nrg_from_dens(self,species='C'): # extract free energy from density profile
-        if species == 'C':
-            fin = np.loadtxt('./outputs/C_dens.dat')
-        elif species == 'H3O':
-            fin = np.loadtxt('./outputs/H3O_dens.dat')
-        dist = fin[:,0]
-        dens = fin[:,1]
-        R = 8.3145
-        k = 1.380649e-23 
-        T = 300
+    def _get_molecular_mass(self, atom_type, carbon_spec=None):
+        """Get molecular mass for density normalisation."""
+        if atom_type == 'C':
+            spec = carbon_spec if carbon_spec is not None else 'CO2'
+            return MOLECULAR_MASSES.get(spec, MOLECULAR_MASSES['CO2'])
+        return MOLECULAR_MASSES.get(atom_type, 18.01528)
+
+    def nrg_from_dens(self,species='C'): 
+        """Extract free energy from density profile.
+        
+        Args:
+            species (str): Species type ('C' or 'H3O').
+            
+        Returns:
+            tuple: (distance, free_energy) arrays.
+        """
+        filename = f'./outputs/{species}_dens.dat'
+        fin = np.loadtxt(filename)
+        dist, dens = fin[:, 0], fin[:, 1]
         const = np.sum(dens)
+
         nrg = [-0.000239006*R*T*np.log(i/const) for i in dens]
+
+        # shift min to zero
         min_val = min(nrg)
         output = [i-min_val for i in nrg]
 
-        save_dat = np.array([dist,output])
-        save_dat = save_dat.transpose()
-        np.savetxt('./outputs/free_energy.dat',save_dat)
+        save_dat = np.column_stack([dist, output])
+        np.savetxt('./outputs/free_energy.dat', save_dat)
 
-        return (dist,output)
+        return dist, output
 
     
     def Density_plot(self,data_Oxygen,data_Carbon=None):
+        """Plot density profiles."""
         dens_plot(data_Oxygen,data_Carbon,self._dens_lower,self._dens_upper)
 
 
@@ -276,24 +316,24 @@ class WillardChandler:
     # orientation
         
     def Orientation_run(self,atomtype='water',histtype='time',bins=400,lower=-10,upper=10,vect='WC',prop='dipole'):
-
-
-        """Computes orientations of near-interface molecules based on specified atom type and histogram type.
+        """Compute orientations of near-interface molecules.
 
         Args:
-            atomtype (str):         Type of atom ('water' or 'carbon').
-            histtype (str):         Type of histogram ('time' or 'heatmap').
-            lower (float):          Lower bound for histogram range.
-            upper (float):          Upper bound for histogram range.
-            bins (int):             Number of bins for histogram.
-            vect (str):             Vector with which to compute orientation ('z' axis or 'WC' vector).
-        
+            atomtype (str): Type of atom ('water' or 'carbon').
+            histtype (str): Type of histogram ('time' or 'heatmap').
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+            bins (int): Number of bins for histogram.
+            vect (str): Reference vector ('WC' interface or 'z' axis).
+            prop (str): Property to compute for carbon orientation.
+
         Returns:
-            ndarray or tuple: Depending on the histtype, returns either the orientation histogram (time) or tuple containing X, Y, and the heatmap histogram (heatmap).
+            ndarray or tuple: For 'time', returns histogram data.
+                             For 'heatmap', returns (X, Y, H) meshgrid and histogram.
 
         Raises:
-            ValueError: If the specified atom type is not supported."""
-        
+            ValueError: If the specified atom type is not supported.
+        """
 
         ori = Orientation(self._u)  
         self._ori_lower = lower
@@ -301,26 +341,13 @@ class WillardChandler:
         
         print()
         print(f'Obtaining orientations.')
-        num_cores = multiprocessing.cpu_count()
         print('Calculating orientation profile ...')
 
-        if atomtype == 'water':
-            if vect == 'WC':
-                result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta)(self._opos[i],self._h1pos[i],self._h2pos[i],self._WC[i],self._boxdim[i]) for i in tqdm(range(len(self._opos))))
-                lower = lower
-                upper = upper
-            elif vect == 'z':
-                result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_z)(self._opos[i],self._h1pos[i],self._h2pos[i],self._boxdim[i]) for i in tqdm(range(len(self._opos))))
+        dist, theta = self._calculate_orientations(ori, atomtype, vect, prop)
 
-        elif atomtype == 'carbon':
-            result = Parallel(n_jobs=num_cores)(delayed(ori._getCosTheta_Carbon)(self._cpos[i],self._ocpos1[i],self._ocpos2[i],self._WC[i],self._boxdim[i],prop) for i in tqdm(range(len(self._cpos))))
-            if vect == 'WC':
-                lower = 0
-                upper = upper
-        else:
-            print('Specify atom type.')
-        dist = [i[0] for i in result]
-        theta = [i[1] for i in result]
+        # Adjust bounds for carbon
+        if atomtype == 'carbon' and vect == 'WC':
+            lower = 0
         
         print('Generating histogram(s)')
         dist_array = np.concatenate(dist).ravel()
@@ -330,14 +357,10 @@ class WillardChandler:
             result = ori._getHistogram(dist_array,
                                     Theta_array,
                                     bins=bins,hist_range=[lower,upper])
-            x_out = result[:,0]
-            result_hist = result[:,1]
+            save_dat = np.column_stack([result[:, 0], result[:, 1]])
+            np.savetxt(f'./outputs/orientation_{atomtype}.dat', save_dat)
             
-            save_dat = np.array([x_out,result_hist])
-            save_dat = save_dat.transpose()
-            np.savetxt(f'./outputs/orientation_{atomtype}.dat',save_dat)
-            print('Done.')
-            print()
+            print('Done.\n')
             return save_dat
 
         elif histtype=='heatmap':
@@ -354,10 +377,48 @@ class WillardChandler:
             np.savetxt(f'./outputs/heatmap_hist_{atomtype}.dat',H)
             print('Done.')
             print()
-            return (X,Y,H)
-
+            return X, Y, H
+        
+    def _calculate_orientations(self, ori, atomtype, vect, prop):
+        """Calculate orientations based on atom type and vector."""
+        
+        if atomtype == 'water':
+            if vect == 'WC':
+                result = Parallel(n_jobs=self.n_cores)(
+                    delayed(ori._getCosTheta)(
+                        self._opos[i], self._h1pos[i], self._h2pos[i],
+                        self._WC[i], self._boxdim[i]
+                    )
+                    for i in tqdm(range(len(self._opos)))
+                )
+            elif vect == 'z': # need to debug this case - not sure if it's working correctly.
+                result = Parallel(n_jobs=self.n_cores)(
+                    delayed(ori._getCosTheta_z)(
+                        self._opos[i], self._h1pos[i], self._h2pos[i], self._boxdim[i]
+                    )
+                    for i in tqdm(range(len(self._opos)))
+                )
+            else:
+                raise ValueError(f"Unknown vector type: {vect}")
+        
+        elif atomtype == 'carbon':
+            result = Parallel(n_jobs=self.n_cores)(
+                delayed(ori._getCosTheta_Carbon)(
+                    self._cpos[i], self._ocpos1[i], self._ocpos2[i],
+                    self._WC[i], self._boxdim[i], prop
+                )
+                for i in tqdm(range(len(self._cpos)))
+            )
+        
+        else:
+            raise ValueError(f"Unknown atom type: {atomtype}")
+            
+        dist = [r[0] for r in result]
+        theta = [r[1] for r in result]
+        return dist, theta
 
     def Orientation_plot(self,data_Oxygen,data_Carbon=None):
+        """Plot orientation profiles."""
         oriPlot(data_Oxygen,data_Carbon,self._ori_lower,self._ori_upper)
 
 
@@ -379,111 +440,135 @@ class WillardChandler:
     ##########################################################################
 
 
-    # Hydrogen bond counting
     def Hbonds_run_water(self,bins=100,lower=-8,upper=2):
+        """Analyse hydrogen bonding for water molecules.
         
+        Args:
+            bins (int): Number of histogram bins.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+            
+        Returns:
+            tuple: ((donor_hist, donor_range), (acceptor_hist, acceptor_range))
+        """
         counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
         self._hbond_upper = upper
 
         print()
         print(f'Obtaining Hbonds.')
-        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_water(self._WC,
-                                                                                lower,upper,
-                                                                                self._start,self._end,
-                                                                                self._boxdim,
-                                                                                bins)
+        hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_water(
+            self._WC,lower,upper,self._start,self._end,self._boxdim,bins)
     
-        self._don = hist_don
-        self._donx = don_range
-        self._acc = hist_acc
-        self._accx = acc_range
+        self._don,self._donx = hist_don, don_range
+        self._acc,self._accx = hist_acc, acc_range
 
-        return ((hist_don,don_range),(hist_acc,acc_range))
-
-
+        return (hist_don, don_range, hist_acc, acc_range)
 
 
     def Hbonds_run_carbon(self,bins=100,lower=-8,upper=2,org=False,frame_select=None,filename=None,save_raw=None):
+        """Analyse hydrogen bonding for carbon species.
         
+        Args:
+            bins (int): Number of histogram bins.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+            org (bool): Whether molecules are organised.
+            frame_select (list, optional): Specific frames to analyse.
+            filename (str, optional): Output filename suffix.
+            save_raw (str, optional): Filename for raw data output.
+            
+        Returns:
+            tuple: ((donor_hist, donor_range), (acceptor_hist, acceptor_range))
+        """
         counter = Hbondz(self._u,self._uz)
         self._hbond_lower = lower
         self._hbond_upper = upper
 
         hist_don,don_range,hist_acc,acc_range = counter.hbond_analysis_carbon(self._WC,
-                                                                                self._cpos,
-                                                                                lower,upper,
-                                                                                self._start,self._end,
-                                                                                self._boxdim,
-                                                                                bins,
-                                                                                org=org,
-                                                                                frame_select=frame_select,
-                                                                                filename=filename,
-                                                                                save_raw=save_raw)
+        self._cpos,lower,upper,self._start,self._end,self._boxdim,bins,org=org,frame_select=frame_select,
+        filename=filename,save_raw=save_raw)
         
-        self._don = hist_don
-        self._donx = don_range
-        self._acc = hist_acc
-        self._accx = acc_range
+        self._don, self._donx = hist_don, don_range
+        self._acc, self._accx = hist_acc, acc_range
 
-        return ((hist_don,don_range),(hist_acc,acc_range))
+        return (hist_don,don_range), (hist_acc,acc_range)
     
-    def coordination_number(self,groupA='C',groupB='OW',r_0=3.5,filename=None,frame_select=None,bins=100,lower=-8,upper=4,save_raw=None):
+
+    
+    def coordination_number(self,groupA='C',groupB='OW',r_0=3.5,filename=None,frame_select=None,
+                            bins=100,lower=-8,upper=4,save_raw=None):
+        """Calculate coordination number profile.
+        
+        Args:
+            groupA (str): First group type ('C' or 'OC').
+            groupB (str): Second group type (currently only 'OW' supported).
+            r_0 (float): Cutoff radius for coordination.
+            filename (str, optional): Output filename suffix.
+            frame_select (list, optional): Specific frames to analyse.
+            bins (int): Number of histogram bins.
+            lower (float): Lower bound for histogram range.
+            upper (float): Upper bound for histogram range.
+            save_raw (str, optional): Filename for raw data output.
+            
+        Returns:
+            ndarray: Coordination number histogram (edges, means).
+        """
         cn_counter = CN(self._u)
-
-        if groupA == 'C':
-            traj_A = self._cpos
-        elif groupA == 'OC':
-            traj_A = self._ocpos
-    
-        traj_B = self._opos
-
         dens = Density(self._u)
 
-        num_cores = multiprocessing.cpu_count()
-        if frame_select == None:
-            result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj_A[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(range(len(traj_A)))) # parse through frames
-        else:
-            result = Parallel(n_jobs=num_cores)(delayed(dens.proximity)(self._WC[i],traj_A[i],boxdim=self._boxdim[i],upper=self._uz,cutoff=False) for i in tqdm(frame_select))
-        self._dens_result = result
+        traj_A = self._cpos if groupA == 'C' else self._ocpos
+        traj_B = self._opos
+        frames = frame_select if frame_select is not None else range(len(traj_A))
 
-        distance_inp = np.concatenate(result).ravel()
+        # Calculate distances to interface
+        print('Calculating distances to interface ...')
+        dist_result = Parallel(n_jobs=self.n_cores)(  # Changed from multiprocessing.cpu_count()
+            delayed(dens.proximity)(
+                self._WC[i], traj_A[i], boxdim=self._boxdim[i], upper=self._uz, cutoff=False
+            )
+            for i in tqdm(frames)
+        )
+        self._dens_result = dist_result
+        distance_inp = np.concatenate(dist_result).ravel()
 
-        print('Generating histogram(s)')
 
-        print()
-        print(f'Obtaining coordination number.')
-        num_cores = multiprocessing.cpu_count()
+        # Calculate coordination numbers
+        print('\nObtaining coordination number.')
         print('Calculating coordination number ...')
-        if frame_select == None:
-            result = Parallel(n_jobs=num_cores)(delayed(cn_counter.coordination_number)(traj_A[i],traj_B[i],self._boxdim[i],r_0) for i in tqdm(range(len(traj_A))))
-        else:
-            result = Parallel(n_jobs=num_cores)(delayed(cn_counter.coordination_number)(traj_A[i],traj_B[i],self._boxdim[i],r_0) for i in tqdm(frame_select))
+            
+        cn_result = Parallel(n_jobs=self.n_cores)(  # Changed from multiprocessing.cpu_count()
+            delayed(cn_counter.coordination_number)(
+                traj_A[i], traj_B[i], self._boxdim[i], r_0
+            )
+            for i in tqdm(frames)
+        )
+
         print('Generating histogram(s)')
-        print(len(result))
-        hist_input = result
+        hist_input = cn_result
         
         if save_raw != None:
             save_file = np.array([distance_inp,hist_input]).T
             np.savetxt(f'./outputs/cn_raw_{save_raw}.dat',save_file)
 
 
-        means,edges,binnumber = stats.binned_statistic(distance_inp[:].flatten(),
-                                                        hist_input[:],
-                                                        statistic='mean', bins=bins,
-                                                        range=[lower,upper])
+        means, edges, _ = stats.binned_statistic(
+            distance_inp.flatten(),  # Removed [:]
+            hist_input,              # Removed [:]
+            statistic='mean', bins=bins,
+            range=[lower,upper]
+        )
         edges = 0.5 * (edges[1:] + edges[:-1])
-        hist = np.array([edges, means])
-        hist = hist.transpose()
-        if filename == None:
-            np.savetxt(f'./outputs/coordination_number.dat',hist)
-        else:
-            np.savetxt(f'./outputs/coordination_number_{filename}.dat',hist)
+        hist = np.column_stack([edges, means])
+
+        output_name = f'./outputs/coordination_number{"_" + filename if filename else ""}.dat'
+        np.savetxt(output_name, hist)
 
         return hist
 
 
     def HBondz_plot(self):
+        """Plot hydrogen bonding profiles."""
         hbondPlot(self._don,self._donx,self._acc,self._accx,self._hbond_lower,self._hbond_upper)
         
 
@@ -510,14 +595,32 @@ class WillardChandler:
     '''Analyse the local solvation environements of the various carbon species
     under both interfacial and bulk conditions.'''
 
-    def surf_RDF(self,bins=75,depth=[-8,4],hist_range=[2,8]):
-
+    def surf_RDF(self, bins=75, depth=None, hist_range=None):
+        """Calculate surface-resolved radial distribution function.
+        
+        Args:
+            bins (int): Number of histogram bins.
+            depth (list): Depth range [min, max] for interface proximity.
+            hist_range (list): Histogram range [min, max] for RDF.
+            
+        Returns:
+            ndarray: RDF histogram (distance, g(r)).
+        """
+        if depth is None:
+            depth = [-8, 4]
+        if hist_range is None:
+            hist_range = [2, 8]
+            
         rdf = RDF(self._u)
 
-        print()
-        print('Calculating RDFs ...')
-        num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores)(delayed(rdf.get_rdf)(self._cpos[i],self._opos[i],self._WC[i],self._boxdim[i],depth,dr=0.08,crit_dens=0.032) for i in tqdm(range(len(self._cpos))))
+        print('\nCalculating RDFs ...')
+        result = Parallel(n_jobs=self.n_cores)(  # Changed from multiprocessing.cpu_count()
+            delayed(rdf.get_rdf)(
+                self._cpos[i], self._opos[i], self._WC[i], self._boxdim[i],
+                depth, dr=0.08, crit_dens=0.032
+            )
+            for i in tqdm(range(len(self._cpos)))
+        )
 
         dist = [i[0] for i in result]
         out = [i[1] for i in result]
@@ -531,19 +634,9 @@ class WillardChandler:
                                                          range=hist_range)
         
         x_out = 0.5 * (edges[1:] + edges[:-1])
-        result_hist = means
         
-        save_dat = np.array([x_out,result_hist])
-        save_dat = save_dat.transpose()
-        np.savetxt(f'./outputs/surf_RDF.dat',save_dat)
-        print('Done.')
-        print()
+        save_dat = np.column_stack([x_out, means])
+        np.savetxt('./outputs/surf_RDF.dat', save_dat)
         
+        print('Done.\n')
         return save_dat
-        
-
-
-
-
-    
-
